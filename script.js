@@ -407,3 +407,13 @@ function resolveVoting(votes) {
     logLine(`${target.name}는 그노시아가 아니었다.`);
   }
 }
+
+function runNight() {
+  logLine("🌙 밤이 되었습니다.");
+
+  runEngineerCheck();
+  runDoctorCheck();
+  runGnosiaAttack();
+
+  logLine("🌅 밤이 끝났습니다.");
+}
