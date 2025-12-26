@@ -10,9 +10,38 @@
 <div id="container">
 
   <div class="panel" id="roster">
-    <h2>명단 관리</h2>
-    <p>캐릭터를 추가/관리하는 영역</p>
-  </div>
+  <h2>명단 관리</h2>
+
+  <input id="charName" placeholder="이름">
+  <select id="charGender">
+    <option>남성</option>
+    <option>여성</option>
+    <option>범성</option>
+  </select>
+  <input id="charAge" type="number" placeholder="나이">
+
+  <h3>스테이터스</h3>
+  카리스마 <input id="charisma" type="number" value="0"><br>
+  로직 <input id="logic" type="number" value="0"><br>
+  연기력 <input id="acting" type="number" value="0"><br>
+  귀염성 <input id="cute" type="number" value="0"><br>
+  스텔스 <input id="stealth" type="number" value="0"><br>
+  직감 <input id="intuition" type="number" value="0"><br>
+
+  <h3>성격</h3>
+  쾌활함 <input id="cheerful" type="number" value="0"><br>
+  사회성 <input id="social" type="number" value="0"><br>
+  논리성향 <input id="logical" type="number" value="0"><br>
+  상냥함 <input id="kindness" type="number" value="0"><br>
+  욕망 <input id="desire" type="number" value="0"><br>
+  용기 <input id="courage" type="number" value="0"><br>
+
+  <button onclick="addCharacter()">캐릭터 추가</button>
+
+  <h3>캐릭터 목록</h3>
+  <div id="characterList"></div>
+</div>
+
 
   <div class="panel" id="settings">
     <h2>게임 설정</h2>
