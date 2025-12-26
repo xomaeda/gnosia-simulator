@@ -106,6 +106,8 @@ function updateGnosiaSetting() {
   info.innerText = `현재 인원 수: ${characters.length}명 / 그노시아 최대 ${max}명`;
 }
 
+assignRoles(getGameSettings());
+
 function runDiscussion() {
   const log = document.getElementById("logArea");
 
@@ -119,7 +121,8 @@ function runDiscussion() {
 
   for (let turn = 1; turn <= 5; turn++) {
     logLine(`--- ${turn}턴 ---`);
-    runTurn();
+    runTurn(maybeClaimRole(speaker);
+);
   }
 
   logLine("토론이 종료되었습니다.");
@@ -289,4 +292,29 @@ function shuffleArray(array) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
+}
+
+function maybeClaimRole(character) {
+  if (character.claimedRole) return;
+
+  const p = character.personality;
+  let chance = p.courage;
+
+  if (character.role === "그노시아" || character.role === "AC주의자") {
+    chance += p.desire;
+  }
+
+  if (Math.random() > chance) return;
+
+  let claim;
+
+  if (character.role === "그노시아") {
+    const fakeRoles = ["엔지니어", "닥터"];
+    claim = fakeRoles[Math.floor(Math.random() * fakeRoles.length)];
+  } else {
+    claim = character.role;
+  }
+
+  character.claimedRole = claim;
+  logLine(`${character.name}가 자신의 역할이 '${claim}'라고 밝혔다.`);
 }
