@@ -43,6 +43,7 @@ function addCharacter() {
     affinity: {}
     role: null,
     claimedRole: null
+    alive: true
 
 
   };
@@ -126,6 +127,8 @@ function runDiscussion() {
   }
 
   logLine("토론이 종료되었습니다.");
+runVoting();
+
 }
 
 function runTurn() {
