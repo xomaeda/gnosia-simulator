@@ -1,3 +1,5 @@
+let gameOver = false;
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -110,6 +112,11 @@ function updateGnosiaSetting() {
 assignRoles(getGameSettings());
 
 function runDiscussion() {
+  if (gameOver) {
+  logLine("이미 게임이 종료되었습니다.");
+  return;
+}
+
   const log = document.getElementById("logArea");
 
   if (characters.length < 5) {
@@ -394,6 +401,8 @@ function resolveVoting(votes) {
   if (!executed) {
     logLine("아무도 콜드슬립되지 않았다.");
     return;
+    checkWinCondition();
+
   }
 
   const target = characters.find(c => c.name === executed);
@@ -409,6 +418,11 @@ function resolveVoting(votes) {
 }
 
 function runNight() {
+  if (gameOver) {
+  logLine("이미 게임이 종료되었습니다.");
+  return;
+}
+
   logLine("🌙 밤이 되었습니다.");
 
   runEngineerCheck();
@@ -484,4 +498,26 @@ function runGnosiaAttack() {
   victim.killedAtNight = true;
 
   logLine(`💀 ${victim.name}가 밤 사이에 사라졌다.`);
+}
+
+function checkWinCondition() {
+  if (gameOver) return;
+
+  const alive = characters.filter(c => c.alive);
+  const aliveGnosia = alive.filter(c => c.role === "그노시아");
+  const aliveHumans = alive.filter(c => c.role !== "그노시아");
+
+  // 인간 승리
+  if (aliveGnosia.length === 0) {
+    logLine("🎉 인간 진영의 승리!");
+    gameOver = true;
+    return;
+  }
+
+  // 그노시아 승리
+  if (aliveGnosia.length >= aliveHumans.length) {
+    logLine("☠️ 그노시아 진영의 승리!");
+    gameOver = true;
+    return;
+  }
 }
