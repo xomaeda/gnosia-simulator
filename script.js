@@ -177,3 +177,29 @@ function initializeRelations() {
 function randomRange(min, max) {
   return Math.random() * (max - min) + min;
 }
+
+function applyRelationEffect(speaker, target, action) {
+  if (!speaker.trust[target.name]) return;
+
+  if (action === "의심한다") {
+    speaker.trust[target.name] -= 0.05;
+    speaker.affinity[target.name] -= 0.03;
+  }
+
+  if (action === "동조한다") {
+    speaker.trust[target.name] += 0.03;
+    speaker.affinity[target.name] += 0.04;
+  }
+
+  if (action === "변호한다") {
+    speaker.trust[target.name] += 0.05;
+    speaker.affinity[target.name] += 0.06;
+  }
+
+  clampRelations(speaker, target.name);
+}
+
+function clampRelations(character, targetName) {
+  character.trust[targetName] = Math.max(0, Math.min(1, character.trust[targetName]));
+  character.affinity[targetName] = Math.max(0, Math.min(1, character.affinity[targetName]));
+}
