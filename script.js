@@ -1,213 +1,266 @@
-/***********************
- * 유틸
- ***********************/
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function clampFloat(value, min, max) {
-  return Number(clamp(parseFloat(value), min, max).toFixed(2));
-}
-
-function getValue(id, min = 0, max = 50) {
-  const el = document.getElementById(id);
-  if (!el) return min;
-  return clamp(parseInt(el.value || 0), min, max);
-}
-
-function getFloatValue(id, min = 0.01, max = 0.99) {
-  const el = document.getElementById(id);
-  if (!el) return 0.5;
-  return clampFloat(el.value, min, max);
-}
-
-/***********************
+/**********************
  * 전역 상태
- ***********************/
+ **********************/
 let characters = [];
-let dayCount = 1;
-
 let gameStarted = false;
 let gameOver = false;
+let dayCount = 1;
+let phaseCount = 0;
 
-/***********************
- * 로그
- ***********************/
+/**********************
+ * 유틸
+ **********************/
 function log(text) {
-  const area = document.getElementById("logArea");
-  area.innerText += text + "\n";
-  area.scrollTop = area.scrollHeight;
+  const logArea = document.getElementById("logArea");
+  logArea.innerText += text + "\n";
+  logArea.scrollTop = logArea.scrollHeight;
 }
 
-/***********************
- * 캐릭터 추가
- ***********************/
-function addCharacter() {
-  const name = document.getElementById("charName").value.trim();
-  const gender = document.getElementById("charGender").value;
-  const age = document.getElementById("charAge").value;
+function random(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-  if (!name) {
-    alert("이름을 입력해줘!");
-    return;
-  }
+/**********************
+ * 캐릭터 생성
+ **********************/
+function addCharacter() {
+  const name = charName.value.trim();
+  if (!name) return alert("이름을 입력해줘");
 
   const character = {
     name,
-    gender,
-    age,
+    gender: charGender.value,
+    age: charAge.value,
     alive: true,
-    role: "미정",
+
     status: {
-      charisma: getValue("charisma"),
-      logic: getValue("logic"),
-      acting: getValue("acting"),
-      cute: getValue("cute"),
-      stealth: getValue("stealth"),
-      intuition: getValue("intuition"),
+      charisma: +charisma.value,
+      logic: +logic.value,
+      acting: +acting.value
     },
+
     personality: {
-      cheerful: getFloatValue("cheerful"),
-      social: getFloatValue("social"),
-      logical: getFloatValue("logical"),
-      kindness: getFloatValue("kindness"),
-      desire: getFloatValue("desire"),
-      courage: getFloatValue("courage"),
-    }
+      courage: +courage.value,
+      desire: +desire.value
+    },
+
+    role: null,
+    claimedRole: null,
+
+    suspicion: 0.5,
+    trust: {}
   };
 
   characters.push(character);
-  updateCharacterList();
-
-  document.getElementById("charName").value = "";
-  document.getElementById("charAge").value = "";
+  renderCharacterList();
 }
 
-/***********************
- * 캐릭터 목록 표시
- ***********************/
-function updateCharacterList() {
+/**********************
+ * 렌더
+ **********************/
+function renderCharacterList() {
   const list = document.getElementById("characterList");
   list.innerHTML = "";
-
   characters.forEach((c, i) => {
-    const div = document.createElement("div");
-    div.innerText = `${i + 1}. ${c.name} (${c.alive ? "생존" : "사망"})`;
-    list.appendChild(div);
+    const d = document.createElement("div");
+    d.innerText = `${i + 1}. ${c.name}${c.alive ? "" : " 💀"}`;
+    list.appendChild(d);
   });
+
+  updateRunAvailability();
 }
 
-/***********************
+function updateRunAvailability() {
+  runButton.disabled = characters.length < 5;
+  warningText.innerText =
+    characters.length < 5 ? "캐릭터는 최소 5명 필요합니다." : "";
+}
+
+/**********************
  * 게임 시작
- ***********************/
+ **********************/
 function startGame() {
-  if (characters.length < 3) {
-    log("캐릭터가 최소 3명은 필요합니다.");
+  if (characters.length < 5) {
+    log("❗ 캐릭터가 최소 5명 필요합니다.");
     return;
   }
 
   gameStarted = true;
   gameOver = false;
   dayCount = 1;
+  phaseCount = 0;
 
   assignRoles();
+  initTrust();
 
   log("================================");
-  log("게임을 시작합니다.");
-  log(`참가자 수: ${characters.length}`);
+  log("게임 시작");
   log("================================");
 }
 
-/***********************
+/**********************
  * 역할 배정
- ***********************/
+ **********************/
 function assignRoles() {
-  const alive = characters.filter(c => c.alive);
+  const gnosiaCount = 1;
+  let roles = ["그노시아"];
+  while (roles.length < characters.length) roles.push("선원");
 
-  // 기본 전원 인간
-  alive.forEach(c => c.role = "인간");
-
-  // 그노시아 수
-  const gnosiaCount = parseInt(document.getElementById("gnosiaCount")?.value || 1);
-
-  let pool = [...alive].sort(() => Math.random() - 0.5);
-  pool.slice(0, gnosiaCount).forEach(c => c.role = "그노시아");
-
-  log(`그노시아 ${gnosiaCount}명 배정 완료`);
+  roles.sort(() => Math.random() - 0.5);
+  characters.forEach((c, i) => (c.role = roles[i]));
 }
 
-/***********************
- * 승패 판정
- ***********************/
-function checkWinCondition() {
-  const alive = characters.filter(c => c.alive);
-  const gnosia = alive.filter(c => c.role === "그노시아");
-  const humans = alive.filter(c => c.role !== "그노시아");
+/**********************
+ * 관계 초기화
+ **********************/
+function initTrust() {
+  characters.forEach(a => {
+    characters.forEach(b => {
+      if (a !== b) a.trust[b.name] = 0.5;
+    });
+  });
+}
 
-  if (gnosia.length === 0) {
-    log("✨ 인간 진영의 승리!");
+/**********************
+ * 낮 토론
+ **********************/
+function runDiscussion() {
+  if (!gameStarted) startGame();
+  if (gameOver) return log("이미 종료됨");
+
+  log(`\n☀️ Day ${dayCount} 토론`);
+
+  // CO 시도
+  characters.forEach(c => tryClaimRole(c));
+
+  // 투표
+  runVoting();
+
+  phaseCount++;
+  if (phaseCount >= 2 && checkWin()) return;
+
+  dayCount++;
+}
+
+/**********************
+ * 역할 CO
+ **********************/
+function tryClaimRole(c) {
+  if (!c.alive || c.claimedRole) return;
+
+  const chance = c.personality.courage + c.personality.desire * 0.5;
+  if (Math.random() > chance) return;
+
+  if (c.role === "그노시아") {
+    c.claimedRole = "선원"; // 거짓 CO
+    log(`🗣 ${c.name}: 나는 선원이다`);
+  } else {
+    c.claimedRole = c.role;
+    log(`🗣 ${c.name}: 나는 ${c.role}다`);
+  }
+}
+
+/**********************
+ * 투표 (의심 기반)
+ **********************/
+function runVoting() {
+  let votes = {};
+
+  characters.forEach(voter => {
+    if (!voter.alive) return;
+
+    const targets = characters.filter(
+      c => c.alive && c !== voter
+    );
+
+    let choice = weightedPick(targets.map(t => ({
+      target: t,
+      weight: t.suspicion
+    })));
+
+    votes[choice.name] = (votes[choice.name] || 0) + 1;
+    log(`${voter.name} → ${choice.name}`);
+  });
+
+  resolveVote(votes);
+}
+
+function weightedPick(list) {
+  const total = list.reduce((s, o) => s + o.weight, 0);
+  let r = Math.random() * total;
+  for (let o of list) {
+    r -= o.weight;
+    if (r <= 0) return o.target;
+  }
+  return list[0].target;
+}
+
+/**********************
+ * 투표 처리
+ **********************/
+function resolveVote(votes) {
+  let max = 0, victim = null;
+  for (let name in votes) {
+    if (votes[name] > max) {
+      max = votes[name];
+      victim = name;
+    }
+  }
+
+  const target = characters.find(c => c.name === victim);
+  target.alive = false;
+  log(`🧊 ${target.name} 콜드슬립`);
+
+  characters.forEach(c => {
+    if (c.alive)
+      c.suspicion += target.role === "그노시아" ? -0.05 : 0.05;
+  });
+
+  renderCharacterList();
+}
+
+/**********************
+ * 밤
+ **********************/
+function runNight() {
+  if (gameOver) return;
+
+  log("\n🌙 밤");
+
+  const gnosia = characters.filter(c => c.alive && c.role === "그노시아");
+  const humans = characters.filter(c => c.alive && c.role !== "그노시아");
+
+  if (gnosia.length === 0 || humans.length === 0) return;
+
+  const victim = random(humans);
+  victim.alive = false;
+  log(`💀 ${victim.name} 습격당함`);
+
+  renderCharacterList();
+  phaseCount++;
+
+  if (phaseCount >= 2) checkWin();
+}
+
+/**********************
+ * 승리 판정
+ **********************/
+function checkWin() {
+  const alive = characters.filter(c => c.alive);
+  const g = alive.filter(c => c.role === "그노시아");
+  const h = alive.filter(c => c.role !== "그노시아");
+
+  if (g.length === 0) {
+    log("🎉 인간 진영 승리");
     gameOver = true;
     return true;
   }
 
-  if (gnosia.length >= humans.length) {
-    log("💀 그노시아 진영의 승리!");
+  if (g.length >= h.length) {
+    log("☠️ 그노시아 승리");
     gameOver = true;
     return true;
   }
 
   return false;
-}
-
-/***********************
- * 낮 토론
- ***********************/
-function runDiscussion() {
-  if (!gameStarted) {
-    startGame();
-  }
-
-  if (gameOver) {
-    log("이미 게임이 종료되었습니다.");
-    return;
-  }
-
-  log(`\n☀️ Day ${dayCount} 토론 시작`);
-
-  // 랜덤 투표
-  const alive = characters.filter(c => c.alive);
-  if (alive.length === 0) return;
-
-  const victim = alive[Math.floor(Math.random() * alive.length)];
-  victim.alive = false;
-
-  log(`👉 ${victim.name} 이(가) 투표로 동면되었습니다.`);
-  updateCharacterList();
-
-  if (!checkWinCondition()) {
-    dayCount++;
-  }
-}
-
-/***********************
- * 밤 행동
- ***********************/
-function runNight() {
-  if (!gameStarted || gameOver) return;
-
-  log("🌙 밤이 되었습니다.");
-
-  const alive = characters.filter(c => c.alive);
-  const gnosia = alive.filter(c => c.role === "그노시아");
-  const humans = alive.filter(c => c.role !== "그노시아");
-
-  if (gnosia.length === 0 || humans.length === 0) return;
-
-  const target = humans[Math.floor(Math.random() * humans.length)];
-  target.alive = false;
-
-  log(`💀 ${target.name} 이(가) 그노시아에게 습격당했습니다.`);
-  updateCharacterList();
-
-  checkWinCondition();
 }
