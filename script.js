@@ -69,3 +69,28 @@ function renderCharacterList() {
     list.appendChild(div);
   });
 }
+
+function getMaxGnosiaCount() {
+  const count = characters.length;
+
+  if (count <= 6) return 1;
+  if (count <= 8) return 2;
+  if (count <= 10) return 3;
+  if (count <= 12) return 4;
+  if (count <= 14) return 5;
+  return 6;
+}
+
+function updateGnosiaSetting() {
+  const max = getMaxGnosiaCount();
+  const input = document.getElementById("gnosiaCount");
+  const info = document.getElementById("gnosiaInfo");
+
+  input.max = max;
+
+  if (Number(input.value) > max) {
+    input.value = max;
+  }
+
+  info.innerText = `현재 인원 수: ${characters.length}명 / 그노시아 최대 ${max}명`;
+}
