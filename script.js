@@ -39,6 +39,9 @@ function addCharacter() {
       desire: getValue("desire"),
       courage: getValue("courage")
     }
+    trust: {},
+    affinity: {}
+
   };
 
   characters.push(character);
