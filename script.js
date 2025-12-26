@@ -417,3 +417,71 @@ function runNight() {
 
   logLine("🌅 밤이 끝났습니다.");
 }
+
+function runEngineerCheck() {
+  const engineers = characters.filter(
+    c => c.alive && c.role === "엔지니어"
+  );
+
+  if (engineers.length === 0) return;
+
+  const engineer = engineers[0];
+  const targets = characters.filter(c => c.alive && c !== engineer);
+
+  if (targets.length === 0) return;
+
+  const target = targets[Math.floor(Math.random() * targets.length)];
+  const result = target.role === "그노시아" ? "그노시아" : "인간";
+
+  engineer.lastCheck = {
+    target: target.name,
+    result
+  };
+
+  logLine(`🔍 ${engineer.name}가 누군가를 검사했다.`);
+}
+
+function runDoctorCheck() {
+  const doctors = characters.filter(
+    c => c.alive && c.role === "닥터"
+  );
+
+  if (doctors.length === 0) return;
+
+  const doctor = doctors[0];
+  const corpses = characters.filter(
+    c => !c.alive && !c.examined
+  );
+
+  if (corpses.length === 0) return;
+
+  const target = corpses[0];
+  target.examined = true;
+
+  doctor.lastAutopsy = {
+    target: target.name,
+    role: target.role
+  };
+
+  logLine(`🧪 ${doctor.name}가 콜드슬립된 인물을 조사했다.`);
+}
+
+function runGnosiaAttack() {
+  const gnosias = characters.filter(
+    c => c.alive && c.role === "그노시아"
+  );
+
+  if (gnosias.length === 0) return;
+
+  const targets = characters.filter(
+    c => c.alive && c.role !== "그노시아"
+  );
+
+  if (targets.length === 0) return;
+
+  const victim = targets[Math.floor(Math.random() * targets.length)];
+  victim.alive = false;
+  victim.killedAtNight = true;
+
+  logLine(`💀 ${victim.name}가 밤 사이에 사라졌다.`);
+}
