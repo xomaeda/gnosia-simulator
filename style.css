@@ -1,0 +1,36 @@
+body {
+  margin: 0;
+  background-color: #111;
+  color: #eee;
+  font-family: "Malgun Gothic", sans-serif;
+}
+
+#container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  height: 100vh;
+}
+
+.panel {
+  border: 1px solid #333;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 18px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 5px;
+}
+
+#logArea {
+  background-color: #000;
+  border: 1px solid #444;
+  height: 200px;
+  padding: 5px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
