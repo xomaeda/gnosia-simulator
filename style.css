@@ -1,36 +1,94 @@
-body {
-  margin: 0;
-  background-color: #111;
-  color: #eee;
-  font-family: "Malgun Gothic", sans-serif;
-}
-
-#container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  height: 100vh;
-}
-
-.panel {
-  border: 1px solid #333;
-  padding: 10px;
+/* =========================
+   기본 리셋
+========================= */
+* {
   box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #111;
+  color: #eee;
+  font-family: "Pretendard", sans-serif;
+}
+
+/* =========================
+   전체 화면 레이아웃
+========================= */
+#container {
+  display: flex;
+  height: 100vh;     /* 🔥 화면 전체 */
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* =========================
+   공통 패널
+========================= */
+.panel {
+  padding: 12px;
+  border-right: 1px solid #333;
+  overflow-y: auto;  /* 🔥 내부 스크롤 */
+}
+
+/* =========================
+   패널별 비율
+========================= */
+#roster {
+  width: 35%;
+}
+
+#settings {
+  width: 35%;
+}
+
+#log {
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================
+   로그 영역
+========================= */
+#logArea {
+  flex: 1;           /* 🔥 남은 높이 전부 */
+  background: #000;
+  color: #0f0;
+  border: 1px solid #333;
+  padding: 8px;
   overflow-y: auto;
 }
 
-h2 {
-  margin-top: 0;
-  font-size: 18px;
-  border-bottom: 1px solid #444;
-  padding-bottom: 5px;
+/* =========================
+   버튼
+========================= */
+button {
+  margin-top: 6px;
+  background: #222;
+  color: #eee;
+  border: 1px solid #444;
+  padding: 6px;
+  cursor: pointer;
 }
 
-#logArea {
-  background-color: #000;
-  border: 1px solid #444;
-  height: 200px;
-  padding: 5px;
-  margin-bottom: 10px;
-  font-size: 14px;
+button:hover {
+  background: #333;
+}
+
+/* =========================
+   모바일 대응
+========================= */
+@media (max-width: 900px) {
+  #container {
+    flex-direction: column;
+  }
+
+  .panel {
+    width: 100% !important;
+    height: 33vh;
+    border-right: none;
+    border-bottom: 1px solid #333;
+  }
 }
