@@ -140,3 +140,16 @@ function logLine(text) {
   log.innerText += text + "\n";
   log.scrollTop = log.scrollHeight;
 }
+
+function updateRunAvailability() {
+  const warning = document.getElementById("warningText");
+  const button = document.getElementById("runButton");
+
+  if (characters.length < 5) {
+    warning.innerText = "캐릭터가 5명 이상 있어야 실행할 수 있습니다.";
+    button.disabled = true;
+  } else {
+    warning.innerText = "";
+    button.disabled = false;
+  }
+}
