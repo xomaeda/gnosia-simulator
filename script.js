@@ -133,6 +133,9 @@ runVoting();
 
 function runTurn() {
   const speaker = randomCharacter();
+
+  if (!speaker.alive) return;
+
   let target = randomCharacter();
 
   while (target === speaker) {
@@ -152,8 +155,10 @@ logLine(
 }
 
 function randomCharacter() {
-  return characters[Math.floor(Math.random() * characters.length)];
+  const aliveChars = characters.filter(c => c.alive);
+  return aliveChars[Math.floor(Math.random() * aliveChars.length)];
 }
+
 
 function logLine(text) {
   const log = document.getElementById("logArea");
@@ -320,4 +325,85 @@ function maybeClaimRole(character) {
 
   character.claimedRole = claim;
   logLine(`${character.name}가 자신의 역할이 '${claim}'라고 밝혔다.`);
+}
+
+function runVoting() {
+  logLine("투표를 시작합니다.");
+
+  const votes = {};
+
+  characters.forEach(c => {
+    if (!c.alive) return;
+
+    const target = decideVoteTarget(c);
+    if (!target) return;
+
+    votes[target.name] = (votes[target.name] || 0) + 1;
+    logLine(`${c.name} → ${target.name} 에게 투표`);
+  });
+
+  resolveVoting(votes);
+}
+function decideVoteTarget(voter) {
+  let candidates = characters.filter(c => c.alive && c !== voter);
+
+  if (candidates.length === 0) return null;
+
+  let weights = [];
+
+  candidates.forEach(target => {
+    let trust = voter.trust[target.name] ?? 0.5;
+    let affinity = voter.affinity[target.name] ?? 0.5;
+
+    let suspicion = (1 - trust) + (1 - affinity);
+
+    if (target.claimedRole) {
+      suspicion += 0.3;
+    }
+
+    weights.push({
+      target,
+      weight: Math.max(0.01, suspicion)
+    });
+  });
+
+  return weightedRandomTarget(weights);
+}
+function weightedRandomTarget(list) {
+  const total = list.reduce((sum, o) => sum + o.weight, 0);
+  let r = Math.random() * total;
+
+  for (let o of list) {
+    r -= o.weight;
+    if (r <= 0) return o.target;
+  }
+
+  return list[0].target;
+}
+function resolveVoting(votes) {
+  let maxVotes = 0;
+  let executed = null;
+
+  for (let name in votes) {
+    if (votes[name] > maxVotes) {
+      maxVotes = votes[name];
+      executed = name;
+    }
+  }
+
+  if (!executed) {
+    logLine("아무도 콜드슬립되지 않았다.");
+    return;
+  }
+
+  const target = characters.find(c => c.name === executed);
+  target.alive = false;
+
+  logLine(`🧊 ${target.name}가 콜드슬립되었다. (${maxVotes}표)`);
+
+  if (target.role === "그노시아") {
+    logLine(`⚠️ ${target.name}는 그노시아였다.`);
+  } else {
+    logLine(`${target.name}는 그노시아가 아니었다.`);
+  }
 }
