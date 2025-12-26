@@ -130,8 +130,7 @@ function runTurn() {
     target = randomCharacter();
   }
 
-  const actions = ["의심한다", "동조한다", "변호한다"];
-  const action = actions[Math.floor(Math.random() * actions.length)];
+const action = decideAction(speaker, target);
 
 applyRelationEffect(speaker, target, action);
 logLine(
@@ -207,4 +206,45 @@ function applyRelationEffect(speaker, target, action) {
 function clampRelations(character, targetName) {
   character.trust[targetName] = Math.max(0, Math.min(1, character.trust[targetName]));
   character.affinity[targetName] = Math.max(0, Math.min(1, character.affinity[targetName]));
+}
+
+function decideAction(speaker, target) {
+  const p = speaker.personality;
+  const s = speaker.status;
+
+  let weights = {
+    "의심한다": 1,
+    "동조한다": 1,
+    "변호한다": 1
+  };
+
+  // 성격 영향
+  weights["의심한다"] += p.logical * 2;
+  weights["의심한다"] += p.desire * 1.5;
+
+  weights["동조한다"] += p.social * 2;
+  weights["동조한다"] += p.cheerful * 1.5;
+
+  weights["변호한다"] += p.kindness * 3;
+
+  // 스테이터스 영향 (0~50 → 0~1로 환산)
+  weights["의심한다"] += (s.logic / 50);
+  weights["동조한다"] += (s.charisma / 50);
+  weights["변호한다"] += (s.acting / 50);
+
+  return weightedRandom(weights);
+}
+
+function weightedRandom(weights) {
+  const entries = Object.entries(weights);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+
+  let r = Math.random() * total;
+
+  for (let [action, weight] of entries) {
+    r -= weight;
+    if (r <= 0) return action;
+  }
+
+  return entries[0][0];
 }
