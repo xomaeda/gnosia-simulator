@@ -154,3 +154,5 @@ function updateRunAvailability() {
     button.disabled = false;
   }
 }
+
+updateRunAvailability();
