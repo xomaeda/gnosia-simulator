@@ -133,7 +133,9 @@ function runTurn() {
   const actions = ["의심한다", "동조한다", "변호한다"];
   const action = actions[Math.floor(Math.random() * actions.length)];
 
-  logLine(`${speaker.name}가 ${target.name}를 ${action}.`);
+applyRelationEffect(speaker, target, action);
+logLine(`${speaker.name}가 ${target.name}를 ${action}.`);
+
 }
 
 function randomCharacter() {
