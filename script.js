@@ -251,3 +251,42 @@ function weightedRandom(weights) {
 
   return entries[0][0];
 }
+
+function assignRoles(settings) {
+  let roles = [];
+
+  // 필수
+  roles.push("그노시아");
+  roles.push("선원");
+
+  // 그노시아 수
+  for (let i = 1; i < settings.gnosiaCount; i++) {
+    roles.push("그노시아");
+  }
+
+  // 선택 직업
+  if (settings.engineer) roles.push("엔지니어");
+  if (settings.doctor) roles.push("닥터");
+  if (settings.guardian) roles.push("수호천사");
+  if (settings.acFollower) roles.push("AC주의자");
+  if (settings.bug) roles.push("버그");
+
+  // 나머지는 선원
+  while (roles.length < characters.length) {
+    roles.push("선원");
+  }
+
+  shuffleArray(roles);
+
+  characters.forEach((c, i) => {
+    c.role = roles[i];
+    c.claimedRole = null;
+  });
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
