@@ -53,13 +53,18 @@ html, body {
    로그 영역
 ========================= */
 #logArea {
-  flex: 1;           /* 🔥 남은 높이 전부 */
+  flex: 1;
   background: #000;
-  color: #0f0;
+  color: #0f0 !important;   /* 🔥 강제 */
   border: 1px solid #333;
   padding: 8px;
   overflow-y: auto;
+
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.4;
 }
+
 
 /* =========================
    버튼
