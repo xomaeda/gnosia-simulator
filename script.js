@@ -1,3 +1,12 @@
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function clampFloat(value, min, max) {
+  return Number(clamp(parseFloat(value.toFixed(2)), min, max));
+}
+
+
 const characters = [];
 
 function addCharacter() {
@@ -37,8 +46,18 @@ function addCharacter() {
 }
 
 function getValue(id) {
-  return Number(document.getElementById(id).value);
+  const el = document.getElementById(id);
+  const value = Number(el.value);
+
+  // 성격 (0.01 ~ 0.99)
+  if (el.step === "0.01") {
+    return clampFloat(value, 0.01, 0.99);
+  }
+
+  // 스테이터스 (0 ~ 50)
+  return clamp(value, 0, 50);
 }
+
 
 function renderCharacterList() {
   const list = document.getElementById("characterList");
