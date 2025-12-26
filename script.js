@@ -159,3 +159,18 @@ function updateRunAvailability() {
 }
 
 updateRunAvailability();
+
+function initializeRelations() {
+  characters.forEach(a => {
+    characters.forEach(b => {
+      if (a !== b) {
+        a.trust[b.name] = randomRange(0.4, 0.6);
+        a.affinity[b.name] = randomRange(0.4, 0.6);
+      }
+    });
+  });
+}
+
+function randomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
