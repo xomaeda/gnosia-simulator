@@ -9,85 +9,67 @@
 
 <div id="container">
 
+  <!-- 명단 관리 -->
   <div class="panel" id="roster">
-  <h2>명단 관리</h2>
+    <h2>명단 관리</h2>
 
-  <input id="charName" placeholder="이름">
-  <select id="charGender">
-    <option>남성</option>
-    <option>여성</option>
-    <option>범성</option>
-  </select>
-  <input id="charAge" type="number" placeholder="나이">
+    <input id="charName" placeholder="이름">
+    <select id="charGender">
+      <option>남성</option>
+      <option>여성</option>
+      <option>범성</option>
+    </select>
+    <input id="charAge" type="number" placeholder="나이">
 
-  <h3>스테이터스</h3>
-  카리스마 <input id="charisma" type="number" min="0" max="50" value="0"><br>
-  로직 <input id="logic" type="number" min="0" max="50" value="0"><br>
-  연기력 <input id="acting" type="number" min="0" max="50" value="0"><br>
-  귀염성 <input id="cute" type="number" min="0" max="50" value="0"><br>
-  스텔스 <input id="stealth" type="number" min="0" max="50" value="0"><br>
-  직감 <input id="intuition" type="number" min="0" max="50" value="0"><br>
+    <h3>스테이터스</h3>
+    카리스마 <input id="charisma" type="number" min="0" max="50" value="0"><br>
+    로직 <input id="logic" type="number" min="0" max="50" value="0"><br>
+    연기력 <input id="acting" type="number" min="0" max="50" value="0"><br>
+    귀염성 <input id="cute" type="number" min="0" max="50" value="0"><br>
+    스텔스 <input id="stealth" type="number" min="0" max="50" value="0"><br>
+    직감 <input id="intuition" type="number" min="0" max="50" value="0"><br>
 
-  <h3>성격</h3>
-  쾌활함 <input id="cheerful" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
-  사회성 <input id="social" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
-  논리성향 <input id="logical" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
-  상냥함 <input id="kindness" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
-  욕망 <input id="desire" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
-  용기 <input id="courage" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    <h3>성격</h3>
+    쾌활함 <input id="cheerful" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    사회성 <input id="social" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    논리성향 <input id="logical" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    상냥함 <input id="kindness" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    욕망 <input id="desire" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
+    용기 <input id="courage" type="number" step="0.01" min="0.01" max="0.99" value="0.50"><br>
 
-  <button onclick="addCharacter()">캐릭터 추가</button>
+    <button onclick="addCharacter()">캐릭터 추가</button>
 
-  <h3>캐릭터 목록</h3>
-  <div id="characterList"></div>
-</div>
+    <h3>캐릭터 목록</h3>
+    <div id="characterList"></div>
+  </div>
 
-
+  <!-- 게임 설정 -->
   <div class="panel" id="settings">
-  <h2>게임 설정</h2>
+    <h2>게임 설정</h2>
 
-  <h3>역할 설정</h3>
+    <h3>역할 설정</h3>
+    <label><input type="checkbox" id="roleEngineer" checked> 엔지니어</label><br>
+    <label><input type="checkbox" id="roleDoctor" checked> 닥터</label><br>
+    <label><input type="checkbox" id="roleGuardian"> 수호천사</label><br>
+    <label><input type="checkbox" id="roleAC"> AC주의자</label><br>
+    <label><input type="checkbox" id="roleBug"> 버그</label><br>
 
-  <label>
-    <input type="checkbox" id="roleEngineer" checked>
-    엔지니어
-  </label><br>
+    <h3>그노시아 수</h3>
+    <input type="number" id="gnosiaCount" value="1" min="1">
+    <div id="gnosiaInfo"></div>
+  </div>
 
-  <label>
-    <input type="checkbox" id="roleDoctor" checked>
-    닥터
-  </label><br>
+  <!-- 실행 & 로그 -->
+  <div class="panel" id="log">
+    <h2>실행 & 로그</h2>
 
-  <label>
-    <input type="checkbox" id="roleGuardian">
-    수호천사
-  </label><br>
+    <p id="warningText" style="color:#ff6666; font-weight:bold;"></p>
 
-  <label>
-    <input type="checkbox" id="roleIdle">
-    선내대기인
-  </label><br>
+    <textarea id="logArea" rows="15" readonly>아직 로그 없음</textarea><br>
 
-  <label>
-    <input type="checkbox" id="roleAC">
-    AC주의자
-  </label><br>
-
-  <label>
-    <input type
-
-
- <div class="panel" id="log">
-  <h2>실행 & 로그</h2>
-
-  <p id="warningText" style="color:#ff6666; font-weight:bold;"></p>
-
-  <div id="logArea">아직 로그 없음</div>
-
-  <button id="runButton" onclick="runDiscussion()">낮 토론 실행</button>
-  <button onclick="runNight()">밤 행동 실행</button>
-
-</div>
+    <button id="runButton" onclick="runDiscussion()">낮 토론 실행</button>
+    <button onclick="runNight()">밤 행동 실행</button>
+  </div>
 
 </div>
 
