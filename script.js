@@ -41,6 +41,9 @@ function addCharacter() {
     }
     trust: {},
     affinity: {}
+    role: null,
+    claimedRole: null
+
 
   };
 
