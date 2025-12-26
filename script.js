@@ -68,7 +68,10 @@ function renderCharacterList() {
     div.innerText = `${i + 1}. ${c.name} (${c.gender}, ${c.age})`;
     list.appendChild(div);
   });
+
+  updateGnosiaSetting();
 }
+
 
 function getMaxGnosiaCount() {
   const count = characters.length;
