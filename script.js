@@ -45,6 +45,7 @@ function addCharacter() {
   };
 
   characters.push(character);
+  initializeRelations();
   renderCharacterList();
 }
 
