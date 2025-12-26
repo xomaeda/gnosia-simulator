@@ -101,8 +101,8 @@ function updateCharacterList() {
  * 게임 시작
  ***********************/
 function startGame() {
-  if (characters.length < 5) {
-    log("캐릭터가 최소 5명은 필요합니다.");
+  if (characters.length < 3) {
+    log("캐릭터가 최소 3명은 필요합니다.");
     return;
   }
 
@@ -181,7 +181,7 @@ function runDiscussion() {
   const victim = alive[Math.floor(Math.random() * alive.length)];
   victim.alive = false;
 
-  log(`👉 ${victim.name} 이(가) 투표로 콜드슬립되었습니다.`);
+  log(`👉 ${victim.name} 이(가) 투표로 동면되었습니다.`);
   updateCharacterList();
 
   if (!checkWinCondition()) {
