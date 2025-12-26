@@ -134,7 +134,12 @@ function runTurn() {
   const action = actions[Math.floor(Math.random() * actions.length)];
 
 applyRelationEffect(speaker, target, action);
-logLine(`${speaker.name}가 ${target.name}를 ${action}.`);
+logLine(
+  `${speaker.name}가 ${target.name}를 ${action}. ` +
+  `(신뢰 ${speaker.trust[target.name].toFixed(2)}, ` +
+  `우호 ${speaker.affinity[target.name].toFixed(2)})`
+);
+
 
 }
 
