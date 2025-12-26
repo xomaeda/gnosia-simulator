@@ -97,3 +97,46 @@ function updateGnosiaSetting() {
 
   info.innerText = `현재 인원 수: ${characters.length}명 / 그노시아 최대 ${max}명`;
 }
+
+function runDiscussion() {
+  const log = document.getElementById("logArea");
+
+  if (characters.length < 5) {
+    log.innerText = "캐릭터가 5명 이상 필요합니다.";
+    return;
+  }
+
+  log.innerText = "";
+  logLine("낮 토론을 시작합니다.");
+
+  for (let turn = 1; turn <= 5; turn++) {
+    logLine(`--- ${turn}턴 ---`);
+    runTurn();
+  }
+
+  logLine("토론이 종료되었습니다.");
+}
+
+function runTurn() {
+  const speaker = randomCharacter();
+  let target = randomCharacter();
+
+  while (target === speaker) {
+    target = randomCharacter();
+  }
+
+  const actions = ["의심한다", "동조한다", "변호한다"];
+  const action = actions[Math.floor(Math.random() * actions.length)];
+
+  logLine(`${speaker.name}가 ${target.name}를 ${action}.`);
+}
+
+function randomCharacter() {
+  return characters[Math.floor(Math.random() * characters.length)];
+}
+
+function logLine(text) {
+  const log = document.getElementById("logArea");
+  log.innerText += text + "\n";
+  log.scrollTop = log.scrollHeight;
+}
