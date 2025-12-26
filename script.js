@@ -70,6 +70,7 @@ function renderCharacterList() {
   });
 
   updateGnosiaSetting();
+  updateRunAvailability();
 }
 
 
