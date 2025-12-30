@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
 
-  <!-- 캐시 방지(가끔 GitHub Pages에서 예전 파일이 계속 뜨는 문제 완화) -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -33,7 +32,6 @@
     h3{ margin:10px 0 6px; font-size:13px; color:var(--muted); font-weight:700; }
 
     .wrap{ max-width:1200px; margin:0 auto; display:grid; gap:12px; }
-
     .card{
       border:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
@@ -75,7 +73,6 @@
       font-weight: 700;
     }
 
-    /* ✅ 스테이터스/성격: 카드형 그리드(가독성 + 여백 절약) */
     .kv-grid{
       display:grid;
       gap: 8px;
@@ -102,7 +99,6 @@
     .kv .k .hint{ color:#8c8c90; font-size: 11px; }
     .kv input{ width:100%; max-width:none; }
 
-    /* ✅ 커맨드: 멀티컬럼 */
     .cmd-grid{
       display:grid;
       gap: 6px 10px;
@@ -161,11 +157,38 @@
     .char-entry .top b{ font-size: 13px; }
     .char-entry .mini{ color: var(--muted); font-size: 11px; }
 
+    .char-actions{
+      display:flex; gap:6px; align-items:center;
+    }
+    .btn-mini{
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+    .btn-warn{
+      border-color: rgba(255,107,107,0.6);
+    }
+    .btn-warn:hover{
+      border-color: var(--bad);
+    }
+
     .logline{ margin:0 0 6px; }
     .tag{ color: var(--accent); }
     .bad{ color: var(--bad); }
     .ok{ color: var(--ok); }
     .note{ font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+    .edit-banner{
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(120,215,255,0.6);
+      color: var(--muted);
+      background: rgba(120,215,255,0.06);
+      display:none;
+    }
+    .edit-banner b{ color: var(--accent); }
+    .edit-banner .right{ float:right; }
   </style>
 </head>
 
@@ -213,10 +236,17 @@
 
       <div class="toolbar">
         <button id="addChar">캐릭터 추가</button>
+        <button id="applyEditBtn" disabled style="display:none;">수정 적용</button>
+        <button id="cancelEditBtn" disabled style="display:none;">수정 취소</button>
+
         <button id="runBtn" disabled>실행</button>
         <button id="saveBtn">세이브</button>
         <input type="file" id="loadFile" accept=".json" />
         <button id="loadBtn">로드</button>
+      </div>
+
+      <div class="edit-banner" id="editBanner">
+        <span>현재 <b>캐릭터 수정 모드</b>입니다. 수정 후 <b>수정 적용</b>을 누르세요.</span>
       </div>
 
       <div class="note">실행 버튼은 캐릭터 <b>5명 이상</b>부터 활성화됩니다. (낮 5턴 → 밤 2단계 진행)</div>
@@ -236,9 +266,6 @@
   </div>
 
   <script>
-    /**************
-     * 데이터 정의 *
-     **************/
     const STAT_FIELDS = [
       { key:"charisma", label:"카리스마", hint:"0~50", step:"0.1", min:0, max:50 },
       { key:"logic", label:"논리력", hint:"0~50", step:"0.1", min:0, max:50 },
@@ -257,7 +284,6 @@
       { key:"courage", label:"용기", hint:"0~1", step:"0.01", min:0, max:1 },
     ];
 
-    // 기획서 커맨드(조건은 스테이터스 기반만 반영 / 성향 기반 사용 여부는 체크로 유저가 지정)
     const COMMANDS = [
       { name:"의심한다", req:[] },
       { name:"의심에 동의한다", req:[] },
@@ -292,11 +318,7 @@
       { name:"도게자한다", req:[["stealth",35]] },
     ];
 
-    /****************
-     * 상태/유틸리티 *
-     ****************/
     const el = (id)=>document.getElementById(id);
-
     const logBox = el("log");
     function addLog(text, cls=""){
       const p = document.createElement("p");
@@ -305,25 +327,23 @@
       logBox.appendChild(p);
       logBox.scrollTop = logBox.scrollHeight;
     }
-
     function clamp(n, min, max){
       if(Number.isNaN(n)) return min;
       return Math.min(max, Math.max(min, n));
     }
-
-    function readNumber(id, min, max, stepFloat=false){
+    function readNumber(id, min, max){
       const v = (document.getElementById(id).value ?? "").toString().trim();
-      const n = stepFloat ? parseFloat(v) : parseFloat(v);
+      const n = parseFloat(v);
       return clamp(n, min, max);
     }
 
     let characters = [];
-    let dayTurn = 0;     // 0~5
-    let nightStep = 0;   // 0,1,2
+    let dayTurn = 0;
+    let nightStep = 0;
 
-    /**************
-     * UI 생성 로직 *
-     **************/
+    // ✅ 편집 모드 상태
+    let editingIndex = null;
+
     function buildKVGrid(containerId, fields, defaultValue){
       const g = document.getElementById(containerId);
       g.innerHTML = "";
@@ -346,7 +366,6 @@
     buildKVGrid("statsGrid", STAT_FIELDS, 0);
     buildKVGrid("persGrid", PERS_FIELDS, 0);
 
-    // 커맨드 체크박스 생성
     const cmdList = el("commandList");
     function buildCommandChecks(){
       cmdList.innerHTML = "";
@@ -369,11 +388,10 @@
     }
     buildCommandChecks();
 
-    // 스테이터스 변경 시 커맨드 선택 가능/불가 갱신
     function getCurrentStats(){
       const stats = {};
       STAT_FIELDS.forEach(f=>{
-        const val = readNumber(f.key, f.min, f.max, true);
+        const val = readNumber(f.key, f.min, f.max);
         stats[f.key] = val;
       });
       return stats;
@@ -396,82 +414,168 @@
       });
     }
 
-    // 모든 스탯 입력칸에 이벤트 연결
     STAT_FIELDS.forEach(f=>{
       el(f.key).addEventListener("input", refreshCommandAvailability);
     });
     refreshCommandAvailability();
 
-    /*****************
-     * 캐릭터 목록 렌더 *
-     *****************/
     const charList = el("charList");
+
     function renderCharacters(){
       charList.innerHTML = "";
       characters.forEach((c, idx)=>{
         const div = document.createElement("div");
         div.className = "char-entry";
         const cmdCount = c.allowedCommands.length;
+
         div.innerHTML = `
           <div class="top">
             <b>#${idx+1} ${c.name}</b>
-            <span class="mini">${c.gender} · ${c.age}세</span>
+            <div class="char-actions">
+              <button class="btn-mini" data-edit="${idx}">수정</button>
+              <button class="btn-mini btn-warn" data-del="${idx}">삭제</button>
+            </div>
           </div>
-          <div class="mini">스테이터스: 카 ${c.stats.charisma} / 논 ${c.stats.logic} / 연 ${c.stats.acting} / 귀 ${c.stats.charm} / 스 ${c.stats.stealth} / 직 ${c.stats.intuition}</div>
-          <div class="mini">성격: 쾌 ${c.pers.cheer} / 사 ${c.pers.social} / 논 ${c.pers.logical} / 상 ${c.pers.kindness} / 욕 ${c.pers.desire} / 용 ${c.pers.courage}</div>
+          <div class="mini">${c.gender} · ${c.age}세</div>
+          <div class="mini">스테이터스: 카리스마 ${c.stats.charisma} / 논리력 ${c.stats.logic} / 연기력 ${c.stats.acting} / 귀염성 ${c.stats.charm} / 스텔스 ${c.stats.stealth} / 직감 ${c.stats.intuition}</div>
+          <div class="mini">성격: 쾌활함 ${c.pers.cheer} / 사회성 ${c.pers.social} / 논리성향 ${c.pers.logical} / 상냥함 ${c.pers.kindness} / 욕망 ${c.pers.desire} / 용기 ${c.pers.courage}</div>
           <div class="mini">사용 커맨드(${cmdCount}): ${cmdCount ? c.allowedCommands.join(", ") : "없음"}</div>
         `;
         charList.appendChild(div);
       });
 
+      // 버튼 이벤트(삭제/수정)
+      charList.querySelectorAll("button[data-del]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const idx = parseInt(btn.dataset.del, 10);
+          const name = characters[idx]?.name ?? "해당 캐릭터";
+          if(confirm(`${name} 을(를) 삭제할까요?`)){
+            // 편집 중인 캐릭터를 삭제하는 경우 편집 취소
+            if(editingIndex === idx) exitEditMode(true);
+            characters.splice(idx, 1);
+            addLog(`[삭제] ${name} 삭제됨`, "bad");
+            renderCharacters();
+          }
+        });
+      });
+
+      charList.querySelectorAll("button[data-edit]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const idx = parseInt(btn.dataset.edit, 10);
+          enterEditMode(idx);
+        });
+      });
+
       el("runBtn").disabled = characters.length < 5;
     }
 
-    /**************
-     * 캐릭터 추가 *
-     **************/
-    el("addChar").addEventListener("click", ()=>{
+    function collectFormCharacter(){
       const name = el("name").value.trim();
       const gender = el("gender").value;
-      const ageRaw = el("age").value;
-      const age = clamp(parseInt(ageRaw,10), 0, 999);
+      const age = clamp(parseInt(el("age").value,10), 0, 999);
 
-      if(!name){
-        alert("이름을 입력해줘!");
-        return;
-      }
-      if(Number.isNaN(age)){
-        alert("나이를 올바르게 입력해줘!");
-        return;
-      }
+      if(!name){ alert("이름을 입력하세요."); return null; }
+      if(Number.isNaN(age)){ alert("나이를 올바르게 입력해주세요."); return null; }
 
       const stats = {};
       STAT_FIELDS.forEach(f=>{
-        const v = readNumber(f.key, f.min, f.max, true);
+        const v = readNumber(f.key, f.min, f.max);
         stats[f.key] = Math.round(v*10)/10;
       });
 
       const pers = {};
       PERS_FIELDS.forEach(f=>{
-        const v = readNumber(f.key, f.min, f.max, true);
+        const v = readNumber(f.key, f.min, f.max);
         pers[f.key] = Math.round(v*100)/100;
       });
 
-      // 유저 체크한 커맨드만 저장 (단, 현재 스탯 조건 충족하는 것만)
       const allowed = [];
       cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{
-        if(chk.checked && !chk.disabled){
-          allowed.push(chk.dataset.cmd);
-        }
+        if(chk.checked && !chk.disabled) allowed.push(chk.dataset.cmd);
       });
 
-      characters.push({ name, gender, age, stats, pers, allowedCommands: allowed });
+      return { name, gender, age, stats, pers, allowedCommands: allowed };
+    }
 
-      addLog(`[캐릭터 추가] ${name} 생성 완료`, "tag");
+    function clearCommandChecks(){
+      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{ chk.checked = false; });
+    }
+
+    // ✅ 편집 모드 진입: 폼에 캐릭터 값 채우기
+    function enterEditMode(idx){
+      const c = characters[idx];
+      if(!c) return;
+
+      editingIndex = idx;
+      el("editBanner").style.display = "block";
+      el("applyEditBtn").style.display = "";
+      el("cancelEditBtn").style.display = "";
+      el("applyEditBtn").disabled = false;
+      el("cancelEditBtn").disabled = false;
+
+      // 기본 버튼(추가) 비활성화
+      el("addChar").disabled = true;
+
+      // 폼 채우기
+      el("name").value = c.name;
+      el("gender").value = c.gender;
+      el("age").value = c.age;
+
+      STAT_FIELDS.forEach(f=>{ el(f.key).value = c.stats[f.key] ?? 0; });
+      PERS_FIELDS.forEach(f=>{ el(f.key).value = c.pers[f.key] ?? 0; });
+
+      refreshCommandAvailability();
+      clearCommandChecks();
+      // 허용 커맨드 체크
+      const set = new Set(c.allowedCommands);
+      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{
+        if(!chk.disabled && set.has(chk.dataset.cmd)) chk.checked = true;
+      });
+
+      addLog(`[수정 모드] ${c.name} 편집 중...`, "tag");
+      // 폼 있는 곳으로 스크롤(UX)
+      el("createCard").scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    // ✅ 편집 모드 종료
+    function exitEditMode(silent=false){
+      editingIndex = null;
+      el("editBanner").style.display = "none";
+      el("applyEditBtn").style.display = "none";
+      el("cancelEditBtn").style.display = "none";
+      el("applyEditBtn").disabled = true;
+      el("cancelEditBtn").disabled = true;
+      el("addChar").disabled = false;
+      clearCommandChecks();
+      refreshCommandAvailability();
+      if(!silent) addLog("[수정 모드] 취소됨", "tag");
+    }
+
+    el("cancelEditBtn").addEventListener("click", ()=>{
+      exitEditMode(false);
+    });
+
+    el("applyEditBtn").addEventListener("click", ()=>{
+      if(editingIndex === null) return;
+      const updated = collectFormCharacter();
+      if(!updated) return;
+
+      const prevName = characters[editingIndex]?.name ?? "";
+      characters[editingIndex] = updated;
+      addLog(`[수정 완료] ${prevName} → ${updated.name}`, "ok");
       renderCharacters();
+      exitEditMode(true);
+    });
 
-      // 다음 캐릭터 만들기 편하게 체크 초기화
-      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{ chk.checked=false; });
+    // ✅ 추가 버튼(편집 모드일 때는 disabled)
+    el("addChar").addEventListener("click", ()=>{
+      const c = collectFormCharacter();
+      if(!c) return;
+
+      characters.push(c);
+      addLog(`[캐릭터 추가] ${c.name} 생성 완료`, "ok");
+      renderCharacters();
+      clearCommandChecks();
     });
 
     /**************
@@ -491,16 +595,14 @@
 
     el("loadBtn").addEventListener("click", ()=>{
       const file = el("loadFile").files?.[0];
-      if(!file){
-        alert("로드할 파일을 선택해줘!");
-        return;
-      }
+      if(!file){ alert("로드할 파일을 선택하세요."); return; }
       const r = new FileReader();
       r.onload = ()=>{
         try{
           const parsed = JSON.parse(r.result);
           if(!Array.isArray(parsed)) throw new Error("형식이 올바르지 않음");
           characters = parsed;
+          exitEditMode(true);
           renderCharacters();
           addLog("[로드] 캐릭터 목록 불러오기 완료", "ok");
         }catch(e){
@@ -514,13 +616,11 @@
      * 낮/밤 진행(로그) *
      *******************/
     function nightFreeActions(){
-      // 간단 로그(기능 간소화 X: “자유행동 로그 출력” 유지)
       const alive = characters.slice();
       if(alive.length < 2){
         addLog("밤 자유행동: 함께할 인원이 부족합니다.");
         return;
       }
-      // 사회성/쾌활함 기반으로 1~3개 정도 상호작용 로그
       const picks = Math.min(3, Math.max(1, Math.floor(Math.random()*3)+1));
       for(let i=0;i<picks;i++){
         const a = alive[Math.floor(Math.random()*alive.length)];
@@ -531,28 +631,19 @@
     }
 
     function gnosiaAttack(){
-      // 현재 버전은 “역할 분배/진짜 AI 공격”까지 들어가 있던 기존 흐름을 유지하려면 커다란 로직이 필요함.
-      // 여기서는 "랜덤 습격"이 아니라, 사용자가 요구한 방향(싫어/의심/눈에 띔 기반)을 위한 '우선순위'만 반영:
-      // - 스텔스 낮은 사람(눈에 띔)
-      // - 욕망/공격성 높은 사람에게 미움받기 쉬움(가정)
-      // - 논리력 높은 사람(위협) 우선
-      // ※ 최종 AI/역할 기반 습격은 다음 단계에서 기존 기능과 충돌 없이 확장 가능
-
       const candidates = characters.slice();
       if(candidates.length === 0){
         addLog("밤 습격: 대상이 없습니다.");
         return;
       }
-
-      // 위험도 점수
       const scored = candidates.map(c=>{
         const s = c.stats;
         const p = c.pers;
         const score =
-          (50 - (s.stealth ?? 0)) * 0.8 +      // 눈에 띔(스텔스 낮을수록)
-          (s.logic ?? 0) * 0.6 +               // 위협(논리 높을수록)
-          (p.desire ?? 0) * 10 +               // 욕망(갈등 유발)
-          (s.charisma ?? 0) * 0.3;             // 영향력
+          (50 - (s.stealth ?? 0)) * 0.8 +
+          (s.logic ?? 0) * 0.6 +
+          (p.desire ?? 0) * 10 +
+          (s.charisma ?? 0) * 0.3;
         return { c, score };
       }).sort((a,b)=>b.score - a.score);
 
@@ -562,16 +653,13 @@
 
     el("runBtn").addEventListener("click", ()=>{
       if(characters.length < 5){
-        alert("캐릭터가 5명 이상이어야 실행할 수 있어!");
+        alert("캐릭터가 5명 이상이어야 실행할 수 있습니다.");
         return;
       }
 
-      // 낮 5턴
       if(dayTurn < 5){
         dayTurn++;
         addLog(`낮 턴 ${dayTurn}/5 진행...`, "tag");
-
-        // 낮 턴마다 간단히 “누가 뭔가 말했다” 로그(실제 커맨드/회의 로직은 기존 확장 가능)
         const speaker = characters[Math.floor(Math.random()*characters.length)];
         addLog(`${speaker.name}:[의심한다] (임시) 누군가 수상해.`, "");
 
@@ -582,7 +670,6 @@
         return;
       }
 
-      // 밤 2단계
       nightStep++;
       if(nightStep === 1){
         addLog("밤 1/2: 자유행동", "tag");
@@ -592,7 +679,6 @@
       if(nightStep === 2){
         addLog("밤 2/2: 습격 처리", "tag");
         gnosiaAttack();
-        // 다음 날로 초기화
         dayTurn = 0;
         nightStep = 0;
         addLog("밤이 종료되었습니다. 다음 날로 넘어갑니다.", "tag");
@@ -600,8 +686,9 @@
       }
     });
 
-    // 첫 로그
+    // 초기 로그
     addLog("로드 완료. 캐릭터를 5명 이상 만들고 실행 버튼을 눌러주세요.", "ok");
+    renderCharacters();
   </script>
 </body>
 </html>
