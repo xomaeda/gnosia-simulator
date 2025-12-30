@@ -20,6 +20,7 @@
       --accent:#78d7ff;
       --bad:#ff6b6b;
       --ok:#7CFF9B;
+      --warn:#ffd166;
     }
     *{ box-sizing:border-box; }
     body{
@@ -29,9 +30,8 @@
     }
     h1{ margin:0 0 10px; font-size:28px; letter-spacing:0.5px; }
     h2{ margin:14px 0 8px; font-size:16px; }
-    h3{ margin:10px 0 6px; font-size:13px; color:var(--muted); font-weight:700; }
-
     .wrap{ max-width:1200px; margin:0 auto; display:grid; gap:12px; }
+
     .card{
       border:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
@@ -158,37 +158,36 @@
     .char-entry .mini{ color: var(--muted); font-size: 11px; }
 
     .char-actions{
-      display:flex; gap:6px; align-items:center;
+      display:flex;
+      gap:6px;
+      align-items:center;
+      margin-left:auto;
     }
-    .btn-mini{
+    .char-actions button{
       padding: 6px 8px;
-      font-size: 12px;
       border-radius: 10px;
+      font-size: 12px;
     }
-    .btn-warn{
-      border-color: rgba(255,107,107,0.6);
-    }
-    .btn-warn:hover{
-      border-color: var(--bad);
-    }
+    .char-actions .danger{ border-color: rgba(255,107,107,.45); }
+    .char-actions .danger:hover{ border-color: var(--bad); }
 
     .logline{ margin:0 0 6px; }
     .tag{ color: var(--accent); }
     .bad{ color: var(--bad); }
     .ok{ color: var(--ok); }
+    .warn{ color: var(--warn); }
     .note{ font-size: 12px; color: var(--muted); margin-top: 8px; }
 
-    .edit-banner{
-      margin-top: 10px;
+    #editHint{
+      display:none;
+      margin-top: 8px;
       padding: 8px 10px;
       border-radius: 12px;
-      border: 1px dashed rgba(120,215,255,0.6);
-      color: var(--muted);
-      background: rgba(120,215,255,0.06);
-      display:none;
+      border: 1px solid rgba(120,215,255,.35);
+      background: rgba(120,215,255,.06);
+      color: var(--txt);
+      font-size: 12px;
     }
-    .edit-banner b{ color: var(--accent); }
-    .edit-banner .right{ float:right; }
   </style>
 </head>
 
@@ -236,8 +235,7 @@
 
       <div class="toolbar">
         <button id="addChar">캐릭터 추가</button>
-        <button id="applyEditBtn" disabled style="display:none;">수정 적용</button>
-        <button id="cancelEditBtn" disabled style="display:none;">수정 취소</button>
+        <button id="cancelEditBtn" style="display:none;">수정 취소</button>
 
         <button id="runBtn" disabled>실행</button>
         <button id="saveBtn">세이브</button>
@@ -245,11 +243,11 @@
         <button id="loadBtn">로드</button>
       </div>
 
-      <div class="edit-banner" id="editBanner">
-        <span>현재 <b>캐릭터 수정 모드</b>입니다. 수정 후 <b>수정 적용</b>을 누르세요.</span>
-      </div>
+      <div id="editHint">현재 <b>캐릭터 수정 모드</b>입니다. 위 입력값을 바꾸고 <b>수정 저장</b>을 누르세요.</div>
 
-      <div class="note">실행 버튼은 캐릭터 <b>5명 이상</b>부터 활성화됩니다. (낮 5턴 → 밤 2단계 진행)</div>
+      <div class="note">
+        실행 버튼은 캐릭터 <b>5명 이상</b>부터 활성화됩니다. (낮: 클릭 5번 = 5턴 / 밤: 클릭 2번 = 자유행동→습격)
+      </div>
     </div>
 
     <div class="two-col">
@@ -266,6 +264,9 @@
   </div>
 
   <script>
+    /**************
+     * 데이터 정의 *
+     **************/
     const STAT_FIELDS = [
       { key:"charisma", label:"카리스마", hint:"0~50", step:"0.1", min:0, max:50 },
       { key:"logic", label:"논리력", hint:"0~50", step:"0.1", min:0, max:50 },
@@ -284,6 +285,7 @@
       { key:"courage", label:"용기", hint:"0~1", step:"0.01", min:0, max:1 },
     ];
 
+    // 커맨드: 스탯 조건(사용 가능 여부 UI/엔진 모두 동일)
     const COMMANDS = [
       { name:"의심한다", req:[] },
       { name:"의심에 동의한다", req:[] },
@@ -296,8 +298,8 @@
       { name:"반론한다", req:[] },
       { name:"반론에 가담한다", req:[] },
       { name:"시끄러워", req:[] },
-      { name:"역할을 밝힌다", req:[] },
-      { name:"자신도 밝힌다", req:[] },
+      { name:"역할을 밝힌다", req:[] },     // 역할 시스템 들어오면 확장
+      { name:"자신도 밝힌다", req:[] },     // 역할 시스템 들어오면 확장
       { name:"역할을 밝혀라", req:[["charisma",10]] },
       { name:"과장해서 말한다", req:[["acting",15]] },
       { name:"동의를 구한다", req:[["charisma",25]] },
@@ -318,7 +320,11 @@
       { name:"도게자한다", req:[["stealth",35]] },
     ];
 
+    /****************
+     * 기본 유틸 *
+     ****************/
     const el = (id)=>document.getElementById(id);
+
     const logBox = el("log");
     function addLog(text, cls=""){
       const p = document.createElement("p");
@@ -327,23 +333,75 @@
       logBox.appendChild(p);
       logBox.scrollTop = logBox.scrollHeight;
     }
+
     function clamp(n, min, max){
       if(Number.isNaN(n)) return min;
       return Math.min(max, Math.max(min, n));
     }
-    function readNumber(id, min, max){
+
+    function readNumber(id, min, max, stepFloat=false){
       const v = (document.getElementById(id).value ?? "").toString().trim();
-      const n = parseFloat(v);
+      const n = stepFloat ? parseFloat(v) : parseFloat(v);
       return clamp(n, min, max);
     }
 
-    let characters = [];
-    let dayTurn = 0;
-    let nightStep = 0;
+    function randPick(arr){
+      return arr[Math.floor(Math.random()*arr.length)];
+    }
 
-    // ✅ 편집 모드 상태
-    let editingIndex = null;
+    function rand(){
+      return Math.random();
+    }
 
+    function weightedPick(items){
+      // items: [{item, w}]
+      let sum = 0;
+      for(const it of items) sum += Math.max(0, it.w);
+      if(sum <= 0) return items.length ? items[0].item : null;
+      let r = Math.random() * sum;
+      for(const it of items){
+        r -= Math.max(0, it.w);
+        if(r <= 0) return it.item;
+      }
+      return items[items.length-1].item;
+    }
+
+    function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+    /****************
+     * 전역 상태(편집/목록) *
+     ****************/
+    let characters = [];          // 유저가 만든 캐릭터 목록(세이브/로드 대상)
+    let editIndex = null;
+
+    /****************
+     * ✅ 게임 런타임 상태(시뮬레이션) *
+     ****************/
+    let game = null;
+    // game = {
+    //   day: 1,
+    //   phase: "day"|"night_free"|"night_attack",
+    //   turnInDay: 0..5,
+    //   alive: Set(id),
+    //   status: { [id]: { alive:boolean, cold:boolean, hate:number, talk:number, coopWith:null, immunity:false } },
+    //   rel: { [fromId]: { [toId]: { trust:number, favor:number } } },
+    //   locks: { humanLocked:Set, enemyLocked:Set },    // 반드시 인간/적
+    //   dayFlags: { votedNever:Set, votedPush:Set, noVoteTarget:Set, pushVoteTarget:Set }, // 투표 관련 플래그(엔진용)
+    //   lastEvent: { kind, speakerId, targetId, topic, blockedRebuttal, supporters:Set, defenders:Set }
+    // }
+
+    function newId(){
+      return "c_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    }
+
+    function ensureCharId(c){
+      if(!c.id) c.id = newId();
+      return c;
+    }
+
+    /**************
+     * UI 생성 로직 *
+     **************/
     function buildKVGrid(containerId, fields, defaultValue){
       const g = document.getElementById(containerId);
       g.innerHTML = "";
@@ -366,6 +424,7 @@
     buildKVGrid("statsGrid", STAT_FIELDS, 0);
     buildKVGrid("persGrid", PERS_FIELDS, 0);
 
+    // 커맨드 체크박스 생성
     const cmdList = el("commandList");
     function buildCommandChecks(){
       cmdList.innerHTML = "";
@@ -391,10 +450,17 @@
     function getCurrentStats(){
       const stats = {};
       STAT_FIELDS.forEach(f=>{
-        const val = readNumber(f.key, f.min, f.max);
+        const val = readNumber(f.key, f.min, f.max, true);
         stats[f.key] = val;
       });
       return stats;
+    }
+
+    function statsMeetReq(stats, req){
+      for(const [k,v] of req){
+        if((stats[k] ?? 0) < v) return false;
+      }
+      return true;
     }
 
     function refreshCommandAvailability(){
@@ -404,10 +470,7 @@
         const checkbox = row.querySelector("input[type=checkbox]");
         const name = checkbox.dataset.cmd;
         const cmd = COMMANDS.find(c=>c.name===name);
-        let ok = true;
-        for(const [k,v] of cmd.req){
-          if((stats[k] ?? 0) < v){ ok = false; break; }
-        }
+        const ok = statsMeetReq(stats, cmd.req);
         checkbox.disabled = !ok;
         row.classList.toggle("disabled", !ok);
         if(!ok) checkbox.checked = false;
@@ -419,170 +482,171 @@
     });
     refreshCommandAvailability();
 
+    /*****************
+     * 캐릭터 목록 렌더 *
+     *****************/
     const charList = el("charList");
-
     function renderCharacters(){
       charList.innerHTML = "";
       characters.forEach((c, idx)=>{
         const div = document.createElement("div");
         div.className = "char-entry";
-        const cmdCount = c.allowedCommands.length;
+        const cmdCount = (c.allowedCommands||[]).length;
 
         div.innerHTML = `
           <div class="top">
             <b>#${idx+1} ${c.name}</b>
             <div class="char-actions">
-              <button class="btn-mini" data-edit="${idx}">수정</button>
-              <button class="btn-mini btn-warn" data-del="${idx}">삭제</button>
+              <button data-action="edit" data-idx="${idx}">수정</button>
+              <button class="danger" data-action="delete" data-idx="${idx}">삭제</button>
             </div>
           </div>
           <div class="mini">${c.gender} · ${c.age}세</div>
-          <div class="mini">스테이터스: 카리스마 ${c.stats.charisma} / 논리력 ${c.stats.logic} / 연기력 ${c.stats.acting} / 귀염성 ${c.stats.charm} / 스텔스 ${c.stats.stealth} / 직감 ${c.stats.intuition}</div>
-          <div class="mini">성격: 쾌활함 ${c.pers.cheer} / 사회성 ${c.pers.social} / 논리성향 ${c.pers.logical} / 상냥함 ${c.pers.kindness} / 욕망 ${c.pers.desire} / 용기 ${c.pers.courage}</div>
+          <div class="mini">스테이터스: 카 ${c.stats.charisma} / 논 ${c.stats.logic} / 연 ${c.stats.acting} / 귀 ${c.stats.charm} / 스 ${c.stats.stealth} / 직 ${c.stats.intuition}</div>
+          <div class="mini">성격: 쾌 ${c.pers.cheer} / 사 ${c.pers.social} / 논 ${c.pers.logical} / 상 ${c.pers.kindness} / 욕 ${c.pers.desire} / 용 ${c.pers.courage}</div>
           <div class="mini">사용 커맨드(${cmdCount}): ${cmdCount ? c.allowedCommands.join(", ") : "없음"}</div>
         `;
         charList.appendChild(div);
       });
 
-      // 버튼 이벤트(삭제/수정)
-      charList.querySelectorAll("button[data-del]").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          const idx = parseInt(btn.dataset.del, 10);
-          const name = characters[idx]?.name ?? "해당 캐릭터";
-          if(confirm(`${name} 을(를) 삭제할까요?`)){
-            // 편집 중인 캐릭터를 삭제하는 경우 편집 취소
-            if(editingIndex === idx) exitEditMode(true);
-            characters.splice(idx, 1);
-            addLog(`[삭제] ${name} 삭제됨`, "bad");
-            renderCharacters();
-          }
-        });
-      });
-
-      charList.querySelectorAll("button[data-edit]").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          const idx = parseInt(btn.dataset.edit, 10);
-          enterEditMode(idx);
-        });
-      });
-
       el("runBtn").disabled = characters.length < 5;
     }
 
-    function collectFormCharacter(){
+    /*******************
+     * 수정모드 유틸 *
+     *******************/
+    function setEditMode(idx){
+      editIndex = idx;
+      el("addChar").textContent = "수정 저장";
+      el("cancelEditBtn").style.display = "";
+      el("editHint").style.display = "";
+
+      const c = characters[idx];
+      el("name").value = c.name;
+      el("gender").value = c.gender;
+      el("age").value = c.age;
+
+      STAT_FIELDS.forEach(f=> el(f.key).value = c.stats[f.key] ?? 0 );
+      PERS_FIELDS.forEach(f=> el(f.key).value = c.pers[f.key] ?? 0 );
+
+      refreshCommandAvailability();
+
+      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{
+        const name = chk.dataset.cmd;
+        chk.checked = !chk.disabled && (c.allowedCommands.includes(name));
+      });
+
+      addLog(`[수정 모드] ${c.name} 수정 중...`, "tag");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearEditMode(){
+      editIndex = null;
+      el("addChar").textContent = "캐릭터 추가";
+      el("cancelEditBtn").style.display = "none";
+      el("editHint").style.display = "none";
+      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{ chk.checked=false; });
+      addLog("[수정 모드 종료]", "tag");
+    }
+
+    el("cancelEditBtn").addEventListener("click", clearEditMode);
+
+    charList.addEventListener("click", (e)=>{
+      const btn = e.target.closest("button");
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const idx = parseInt(btn.dataset.idx, 10);
+      if(Number.isNaN(idx) || !characters[idx]) return;
+
+      if(action === "edit"){
+        setEditMode(idx);
+      }
+      if(action === "delete"){
+        const targetName = characters[idx].name;
+        if(confirm(`${targetName} 캐릭터를 삭제할까요?`)){
+          characters.splice(idx, 1);
+          if(editIndex === idx) clearEditMode();
+          else if(editIndex !== null && editIndex > idx) editIndex -= 1;
+          renderCharacters();
+          addLog(`[삭제] ${targetName} 삭제 완료`, "bad");
+        }
+      }
+    });
+
+    /**************
+     * 캐릭터 추가/수정 저장 *
+     **************/
+    el("addChar").addEventListener("click", ()=>{
       const name = el("name").value.trim();
       const gender = el("gender").value;
-      const age = clamp(parseInt(el("age").value,10), 0, 999);
+      const ageRaw = el("age").value;
+      const age = clamp(parseInt(ageRaw,10), 0, 999);
 
-      if(!name){ alert("이름을 입력하세요."); return null; }
-      if(Number.isNaN(age)){ alert("나이를 올바르게 입력해주세요."); return null; }
+      if(!name){
+        alert("이름을 입력해줘!");
+        return;
+      }
+      if(Number.isNaN(age)){
+        alert("나이를 올바르게 입력해줘!");
+        return;
+      }
 
       const stats = {};
       STAT_FIELDS.forEach(f=>{
-        const v = readNumber(f.key, f.min, f.max);
+        const v = readNumber(f.key, f.min, f.max, true);
         stats[f.key] = Math.round(v*10)/10;
       });
 
       const pers = {};
       PERS_FIELDS.forEach(f=>{
-        const v = readNumber(f.key, f.min, f.max);
+        const v = readNumber(f.key, f.min, f.max, true);
         pers[f.key] = Math.round(v*100)/100;
       });
 
       const allowed = [];
       cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{
-        if(chk.checked && !chk.disabled) allowed.push(chk.dataset.cmd);
+        if(chk.checked && !chk.disabled){
+          allowed.push(chk.dataset.cmd);
+        }
       });
 
-      return { name, gender, age, stats, pers, allowedCommands: allowed };
-    }
+      const newChar = ensureCharId({ id: null, name, gender, age, stats, pers, allowedCommands: allowed });
 
-    function clearCommandChecks(){
-      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{ chk.checked = false; });
-    }
+      if(editIndex !== null && characters[editIndex]){
+        const oldName = characters[editIndex].name;
+        newChar.id = characters[editIndex].id || newChar.id; // 수정 시 id 유지
+        characters[editIndex] = newChar;
+        addLog(`[수정 저장] ${oldName} → ${name} (수정 완료)`, "ok");
+        clearEditMode();
+      }else{
+        characters.push(newChar);
+        addLog(`[캐릭터 추가] ${name} 생성 완료`, "tag");
+      }
 
-    // ✅ 편집 모드 진입: 폼에 캐릭터 값 채우기
-    function enterEditMode(idx){
-      const c = characters[idx];
-      if(!c) return;
+      // 게임이 이미 진행 중이면(런타임 관계/상태가 존재) 안전상 새로 시작 권장
+      if(game){
+        addLog("※ 캐릭터 목록이 변경되었습니다. 진행 중인 게임은 다음 실행에서 자동으로 '새 게임'으로 시작합니다.", "warn");
+        game = null;
+      }
 
-      editingIndex = idx;
-      el("editBanner").style.display = "block";
-      el("applyEditBtn").style.display = "";
-      el("cancelEditBtn").style.display = "";
-      el("applyEditBtn").disabled = false;
-      el("cancelEditBtn").disabled = false;
-
-      // 기본 버튼(추가) 비활성화
-      el("addChar").disabled = true;
-
-      // 폼 채우기
-      el("name").value = c.name;
-      el("gender").value = c.gender;
-      el("age").value = c.age;
-
-      STAT_FIELDS.forEach(f=>{ el(f.key).value = c.stats[f.key] ?? 0; });
-      PERS_FIELDS.forEach(f=>{ el(f.key).value = c.pers[f.key] ?? 0; });
-
-      refreshCommandAvailability();
-      clearCommandChecks();
-      // 허용 커맨드 체크
-      const set = new Set(c.allowedCommands);
-      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{
-        if(!chk.disabled && set.has(chk.dataset.cmd)) chk.checked = true;
-      });
-
-      addLog(`[수정 모드] ${c.name} 편집 중...`, "tag");
-      // 폼 있는 곳으로 스크롤(UX)
-      el("createCard").scrollIntoView({behavior:"smooth", block:"start"});
-    }
-
-    // ✅ 편집 모드 종료
-    function exitEditMode(silent=false){
-      editingIndex = null;
-      el("editBanner").style.display = "none";
-      el("applyEditBtn").style.display = "none";
-      el("cancelEditBtn").style.display = "none";
-      el("applyEditBtn").disabled = true;
-      el("cancelEditBtn").disabled = true;
-      el("addChar").disabled = false;
-      clearCommandChecks();
-      refreshCommandAvailability();
-      if(!silent) addLog("[수정 모드] 취소됨", "tag");
-    }
-
-    el("cancelEditBtn").addEventListener("click", ()=>{
-      exitEditMode(false);
-    });
-
-    el("applyEditBtn").addEventListener("click", ()=>{
-      if(editingIndex === null) return;
-      const updated = collectFormCharacter();
-      if(!updated) return;
-
-      const prevName = characters[editingIndex]?.name ?? "";
-      characters[editingIndex] = updated;
-      addLog(`[수정 완료] ${prevName} → ${updated.name}`, "ok");
       renderCharacters();
-      exitEditMode(true);
-    });
-
-    // ✅ 추가 버튼(편집 모드일 때는 disabled)
-    el("addChar").addEventListener("click", ()=>{
-      const c = collectFormCharacter();
-      if(!c) return;
-
-      characters.push(c);
-      addLog(`[캐릭터 추가] ${c.name} 생성 완료`, "ok");
-      renderCharacters();
-      clearCommandChecks();
+      cmdList.querySelectorAll("input[type=checkbox]").forEach(chk=>{ chk.checked=false; });
     });
 
     /**************
-     * 세이브/로드 *
+     * 세이브/로드 (요구대로: 캐릭터 목록만) *
      **************/
     el("saveBtn").addEventListener("click", ()=>{
-      const data = JSON.stringify(characters, null, 2);
+      const payload = characters.map(c=>({
+        id: c.id || null,
+        name: c.name,
+        gender: c.gender,
+        age: c.age,
+        stats: c.stats,
+        pers: c.pers,
+        allowedCommands: c.allowedCommands || []
+      }));
+      const data = JSON.stringify(payload, null, 2);
       const blob = new Blob([data], {type:"application/json"});
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -595,15 +659,30 @@
 
     el("loadBtn").addEventListener("click", ()=>{
       const file = el("loadFile").files?.[0];
-      if(!file){ alert("로드할 파일을 선택하세요."); return; }
+      if(!file){
+        alert("로드할 파일을 선택해줘!");
+        return;
+      }
       const r = new FileReader();
       r.onload = ()=>{
         try{
           const parsed = JSON.parse(r.result);
           if(!Array.isArray(parsed)) throw new Error("형식이 올바르지 않음");
-          characters = parsed;
-          exitEditMode(true);
+          characters = parsed.map(c=>{
+            const cc = ensureCharId({
+              id: c.id || null,
+              name: c.name,
+              gender: c.gender,
+              age: c.age,
+              stats: c.stats || {},
+              pers: c.pers || {},
+              allowedCommands: c.allowedCommands || []
+            });
+            return cc;
+          });
+          clearEditMode();
           renderCharacters();
+          game = null;
           addLog("[로드] 캐릭터 목록 불러오기 완료", "ok");
         }catch(e){
           alert("로드 실패: 파일 형식이 올바르지 않아요.");
@@ -612,83 +691,877 @@
       r.readAsText(file);
     });
 
-    /*******************
-     * 낮/밤 진행(로그) *
-     *******************/
-    function nightFreeActions(){
-      const alive = characters.slice();
+    /****************************************************
+     * ✅ 커맨드 엔진 코어 (관계/어그로/연쇄/타이밍/사망자 방지)
+     ****************************************************/
+
+    // 관계(신뢰/우호): 0~100
+    function initRelationMatrix(chars){
+      const rel = {};
+      for(const a of chars){
+        rel[a.id] = {};
+        for(const b of chars){
+          if(a.id === b.id) continue;
+          rel[a.id][b.id] = { trust: 50, favor: 50 };
+        }
+      }
+      return rel;
+    }
+
+    function getRel(fromId, toId){
+      if(!game) return {trust:50, favor:50};
+      return game.rel[fromId]?.[toId] ?? {trust:50, favor:50};
+    }
+
+    function modRel(fromId, toId, dTrust, dFavor){
+      if(!game) return;
+      if(!game.rel[fromId] || !game.rel[fromId][toId]) return;
+      const r = game.rel[fromId][toId];
+      r.trust = clamp(Math.round((r.trust + dTrust)*10)/10, 0, 100);
+      r.favor = clamp(Math.round((r.favor + dFavor)*10)/10, 0, 100);
+    }
+
+    function aliveChars(){
+      if(!game) return [];
+      return characters.filter(c=>game.alive.has(c.id));
+    }
+
+    function isAlive(id){
+      return game && game.alive.has(id);
+    }
+
+    function statusOf(id){
+      return game.status[id];
+    }
+
+    function stat(c, key){ return c.stats[key] ?? 0; }
+    function pers(c, key){ return c.pers[key] ?? 0; }
+
+    function canUseByStats(c, cmdName){
+      const cmd = COMMANDS.find(x=>x.name===cmdName);
+      if(!cmd) return false;
+      return statsMeetReq(c.stats, cmd.req);
+    }
+
+    function hasCommand(c, cmdName){
+      return (c.allowedCommands || []).includes(cmdName);
+    }
+
+    function canUse(c, cmdName, ctx){
+      // 공통: 살아있어야 함 + 유저 체크 + 스탯 충족
+      if(!isAlive(c.id)) return false;
+      if(!hasCommand(c, cmdName)) return false;
+      if(!canUseByStats(c, cmdName)) return false;
+
+      // 타이밍(상황) 조건
+      const kind = ctx?.kind || "free";
+      const phase = game.phase;
+
+      // 낮에만 가능한 것(여기서는 회의/투표 관련)
+      const dayOnly = new Set([
+        "의심한다","의심에 동의한다","부정한다","변호한다","변호에 가담한다",
+        "감싼다","함께 감싼다","감사한다","반론한다","반론에 가담한다","시끄러워",
+        "역할을 밝힌다","자신도 밝힌다","역할을 밝혀라","과장해서 말한다","동의를 구한다",
+        "반론을 막는다","얼버무린다","반격한다","도움을 요청한다","슬퍼한다","속지마라",
+        "투표해라","투표하지 마라","반드시 인간이다","반드시 적이다","전원 배제해라",
+        "잡담한다","협력하자","인간이라고 말해"
+      ]);
+      if(dayOnly.has(cmdName) && phase !== "day") return false;
+
+      // 도게자는 "투표로 본인이 콜드슬립될 때" 사용(여기서는 투표 구현 전이라: 엔진은 보류)
+      if(cmdName === "도게자한다") return false;
+
+      // 상황별 제한
+      if(cmdName === "의심한다" || cmdName === "감싼다" || cmdName === "잡담한다" || cmdName==="협력하자"){
+        return kind === "free";
+      }
+
+      if(cmdName === "의심에 동의한다"){
+        return kind === "after_accuse" && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "변호한다"){
+        return (kind === "after_accuse" || kind === "after_rebuttal" || kind==="after_defend") && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "변호에 가담한다"){
+        return kind === "after_defend" && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "함께 감싼다"){
+        return kind === "after_cover" && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "반론한다"){
+        return (kind === "after_cover" || kind === "after_vote_push" || kind==="after_vote_block") && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "반론에 가담한다"){
+        return kind === "after_rebuttal" && !ctx.blockedRebuttal;
+      }
+      if(cmdName === "부정한다" || cmdName === "얼버무린다" || cmdName === "반격한다" || cmdName === "도움을 요청한다" || cmdName==="슬퍼한다" || cmdName==="속지마라"){
+        return kind === "being_accused";
+      }
+      if(cmdName === "감사한다"){
+        return kind === "after_being_covered" || kind === "after_human_locked";
+      }
+      if(cmdName === "시끄러워"){
+        return kind === "after_talky";
+      }
+      if(cmdName === "역할을 밝힌다" || cmdName === "자신도 밝힌다" || cmdName === "역할을 밝혀라"){
+        // 역할 시스템 전엔 로그만(사용은 허용하되 영향 미미)
+        return kind === "free";
+      }
+      if(cmdName === "과장해서 말한다" || cmdName === "동의를 구한다" || cmdName === "반론을 막는다"){
+        return (kind === "after_accuse" || kind==="after_cover" || kind==="after_defend" || kind==="after_rebuttal");
+      }
+      if(cmdName === "투표해라"){
+        return kind === "free" || kind === "after_accuse";
+      }
+      if(cmdName === "투표하지 마라"){
+        return kind === "free" || kind==="after_defend";
+      }
+      if(cmdName === "반드시 인간이다"){
+        return kind === "free";
+      }
+      if(cmdName === "반드시 적이다"){
+        return kind === "free";
+      }
+      if(cmdName === "전원 배제해라"){
+        return kind === "free";
+      }
+      if(cmdName === "인간이라고 말해"){
+        return kind === "free";
+      }
+
+      return true;
+    }
+
+    // 어그로/발언량
+    function addHate(id, amount, stealth){
+      const st = statusOf(id);
+      const reduce = clamp(stealth/50, 0, 1);      // stealth 높을수록 hate 상승 억제
+      const gain = amount * (1 - 0.55*reduce);
+      st.hate = clamp(st.hate + gain, 0, 100);
+    }
+
+    function talk(id, amount=1){
+      const st = statusOf(id);
+      st.talk += amount;
+    }
+
+    // 전체 분위기: 특정 대상에 대한 집단 의심/호감 점수
+    function groupSuspicion(targetId){
+      const alive = aliveChars();
+      let s = 0;
+      for(const a of alive){
+        if(a.id === targetId) continue;
+        const r = getRel(a.id, targetId);
+        s += (50 - r.trust) * 0.9 + (50 - r.favor) * 0.4;
+      }
+      // "반드시 인간"이면 거의 공격 불가
+      if(game.locks.humanLocked.has(targetId)) s -= 999;
+      // "반드시 적"이면 강의심
+      if(game.locks.enemyLocked.has(targetId)) s += 999;
+      return s;
+    }
+
+    function groupAffinity(targetId){
+      const alive = aliveChars();
+      let s = 0;
+      for(const a of alive){
+        if(a.id === targetId) continue;
+        const r = getRel(a.id, targetId);
+        s += (r.trust-50)*0.6 + (r.favor-50)*0.8;
+      }
+      return s;
+    }
+
+    function pickAccuseTarget(speaker){
+      const alive = aliveChars().filter(x=>x.id!==speaker.id);
+      const candidates = alive.filter(x=>!game.locks.humanLocked.has(x.id));
+      if(!candidates.length) return null;
+
+      // 논리성향↑일수록 집단 의심을, 욕망↑일수록 개인 감정(싫어함)을 더 봄
+      const wLogic = pers(speaker,"logical");
+      const wDes  = pers(speaker,"desire");
+      const items = candidates.map(t=>{
+        const my = getRel(speaker.id, t.id);
+        const group = groupSuspicion(t.id);
+        const score = (group*(0.7+0.8*wLogic)) + ((50-my.favor)*25*wDes) + ((50-my.trust)*10*(1-wLogic));
+        return { item:t, w: Math.max(0.001, score) };
+      });
+      return weightedPick(items);
+    }
+
+    function pickDefendTarget(speaker){
+      const alive = aliveChars().filter(x=>x.id!==speaker.id);
+      const candidates = alive.filter(x=>!game.locks.enemyLocked.has(x.id));
+      if(!candidates.length) return null;
+
+      // 상냥함↑, 사회성↑은 방어 선택 확률 증가
+      const wKind = pers(speaker,"kindness");
+      const wSoc  = pers(speaker,"social");
+
+      const items = candidates.map(t=>{
+        const my = getRel(speaker.id, t.id);
+        const score = (my.favor-20)* (0.7+1.2*wKind) + (my.trust-20)* (0.7+0.9*wSoc) + (groupAffinity(t.id)*0.2);
+        return { item:t, w: Math.max(0.001, score) };
+      });
+      return weightedPick(items);
+    }
+
+    function pickHelperTarget(speaker){
+      // 도움 요청 대상: 가장 우호/신뢰 높은 인물
+      const alive = aliveChars().filter(x=>x.id!==speaker.id);
+      if(!alive.length) return null;
+      let best = alive[0];
+      let bestScore = -1e9;
+      for(const t of alive){
+        const r = getRel(speaker.id, t.id);
+        const score = r.favor*1.2 + r.trust*0.8;
+        if(score > bestScore){ bestScore = score; best = t; }
+      }
+      return best;
+    }
+
+    // 동조자 선택: 카리스마와 "나에 대한 신뢰/호감"이 높을수록 동조
+    function pickSupporters(leader, target, mode){
+      const alive = aliveChars().filter(x=>x.id!==leader.id && x.id!==target.id);
+      const results = [];
+      const leaderCharisma = stat(leader,"charisma");
+      for(const s of alive){
+        // 그 대상이 "반드시 인간"이면 공격 동조 줄어듦
+        if(mode==="accuse" && game.locks.humanLocked.has(target.id)) continue;
+        // 그 대상이 "반드시 적"이면 공격 동조 늘어남
+        const lockBonus = (mode==="accuse" && game.locks.enemyLocked.has(target.id)) ? 0.25 : 0;
+
+        const r = getRel(s.id, leader.id);
+        const pAgree = clamp( (leaderCharisma/70) + (r.trust/200) + (r.favor/260) + lockBonus, 0, 0.75);
+
+        // 성격: 논리성향↑이면 "의심 동조", 상냥함↑이면 "감싸기 동조" 더 잘 함
+        const bias = mode==="accuse" ? (0.65 + pers(s,"logical")*0.5) : (0.65 + pers(s,"kindness")*0.5);
+        if(rand() < pAgree*bias){
+          results.push(s);
+        }
+      }
+      // 너무 많이 붙으면 과하니 최대 4명 제한
+      return results.slice(0, 4);
+    }
+
+    // 피해량 계산: 로직=신뢰 타격, 연기=우호 타격, 귀염=피해 감소
+    function applyTrustFavorDamage(attacker, target, totalLogic, totalActing, aggroScale=1.0){
+      // 방어: 귀염성 높으면 공격을 덜 받음(타겟이 받은 피해 감소)
+      const cuteDef = clamp(stat(target,"charm")/70, 0, 0.55);
+      const dmgTrust = -(totalLogic * 0.30) * (1 - cuteDef);
+      const dmgFavor = -(totalActing * 0.26) * (1 - cuteDef);
+
+      // 공격은 "모든 사람"의 시선에 영향을 줌(집단 기반)
+      // 간소화: 대상에 대한 "각자 관계"를 리더 중심으로 흔들어준다.
+      for(const listener of aliveChars()){
+        if(listener.id === target.id) continue;
+        // 리더를 믿을수록 영향을 크게 받음
+        const rToAtt = getRel(listener.id, attacker.id);
+        const influence = clamp(0.4 + (rToAtt.trust/200) + (stat(attacker,"charisma")/200), 0.2, 1.0);
+        modRel(listener.id, target.id, dmgTrust*influence, dmgFavor*influence);
+      }
+
+      // 어그로 상승(발언자)
+      addHate(attacker.id, (6 + totalLogic*0.08 + totalActing*0.06) * aggroScale, stat(attacker,"stealth"));
+    }
+
+    function applyTrustFavorHeal(helper, target, totalLogic, totalActing, aggroScale=0.8){
+      const healTrust = (totalLogic * 0.26);
+      const healFavor = (totalActing * 0.22);
+
+      for(const listener of aliveChars()){
+        if(listener.id === target.id) continue;
+        const rToHelp = getRel(listener.id, helper.id);
+        const influence = clamp(0.35 + (rToHelp.trust/220) + (stat(helper,"charisma")/240), 0.2, 0.95);
+        modRel(listener.id, target.id, healTrust*influence, healFavor*influence);
+      }
+
+      addHate(helper.id, (4 + totalLogic*0.05 + totalActing*0.04) * aggroScale, stat(helper,"stealth"));
+    }
+
+    // “그 사람 너무 말 많아” 비난
+    function applyNoisyCallout(caller, target){
+      // 타겟 신뢰 하락, caller 어그로는 적게
+      for(const listener of aliveChars()){
+        if(listener.id === target.id) continue;
+        const infl = clamp(0.35 + (getRel(listener.id, caller.id).trust/260), 0.2, 0.8);
+        modRel(listener.id, target.id, -4*infl, -1.5*infl);
+      }
+      addHate(caller.id, 2.2, stat(caller,"stealth"));
+    }
+
+    // “감사”: 감싸준 사람에게 호감 + 자기 어그로 감소
+    function applyThanks(thanker, helper){
+      modRel(thanker.id, helper.id, +1.0, +6.0);
+      const st = statusOf(thanker.id);
+      st.hate = clamp(st.hate - (6 + stat(thanker,"charm")*0.10), 0, 100);
+    }
+
+    // “협력”: 둘의 상호 우호를 크게 올리고 협력 관계 기록
+    function applyCoop(a, b){
+      modRel(a.id, b.id, +2, +18);
+      modRel(b.id, a.id, +2, +18);
+      statusOf(a.id).coopWith = b.id;
+      statusOf(b.id).coopWith = a.id;
+      addHate(a.id, 1.5, stat(a,"stealth"));
+      addHate(b.id, 1.5, stat(b,"stealth"));
+    }
+
+    // “얼버무림”: 논의를 강제 종료 + 추가 공격 차단(대신 옹호 못 받음)
+    function applyDeflect(actor){
+      // 자신에 대한 타인 신뢰를 약간 깎고(수상함), 어그로는 낮춤
+      for(const listener of aliveChars()){
+        if(listener.id === actor.id) continue;
+        modRel(listener.id, actor.id, -2.0, -0.5);
+      }
+      const st = statusOf(actor.id);
+      st.hate = clamp(st.hate - (6 + stat(actor,"stealth")*0.18), 0, 100);
+    }
+
+    // “슬퍼한다”: 방어형. 타인의 호감 상승 + 공격 억제
+    function applySad(actor){
+      for(const listener of aliveChars()){
+        if(listener.id === actor.id) continue;
+        const infl = clamp(0.3 + stat(actor,"charm")/120, 0.25, 0.8);
+        modRel(listener.id, actor.id, +1.0*infl, +6.0*infl);
+      }
+      const st = statusOf(actor.id);
+      st.hate = clamp(st.hate - (3 + stat(actor,"charm")*0.06), 0, 100);
+    }
+
+    // “부정”: 신뢰/호감 회복 + 동조 차단(여기선: 그 턴에 동조 확률 감소)
+    function applyDeny(actor){
+      for(const listener of aliveChars()){
+        if(listener.id === actor.id) continue;
+        const infl = clamp(0.35 + stat(actor,"logic")/200 + stat(actor,"acting")/250, 0.25, 0.9);
+        modRel(listener.id, actor.id, +4*infl, +3*infl);
+      }
+      addHate(actor.id, 2.5, stat(actor,"stealth"));
+    }
+
+    // “반격”: 공격자에게 역공 (자기 피해 회복 없음)
+    function applyCounter(actor, attacker){
+      const logicAtk = stat(actor,"logic");
+      const actAtk   = stat(actor,"acting");
+      applyTrustFavorDamage(actor, attacker, logicAtk, actAtk, 1.05);
+    }
+
+    // “도움 요청”: 상대가 변호해줄 ‘확률’을 만들어줌
+    function applyAskHelp(actor, helper){
+      // helper가 actor를 변호할 확률 증가: 관계 기반
+      const r = getRel(helper.id, actor.id);
+      const chance = clamp(0.15 + r.favor/120 + r.trust/180 + stat(actor,"acting")/250, 0.1, 0.85);
+      return chance;
+    }
+
+    // “속지마라”: 공격자의 거짓말이 들킬 확률 증가(역할/거짓말 시스템 들어오면 확장)
+    function applyDontBeFooled(actor, attacker){
+      // 지금은 엔진만: 공격자 신뢰를 서서히 깎는 디버프처럼 처리
+      for(const listener of aliveChars()){
+        if(listener.id === attacker.id) continue;
+        const infl = clamp(0.25 + stat(actor,"intuition")/200, 0.2, 0.8);
+        modRel(listener.id, attacker.id, -2.8*infl, -0.8*infl);
+      }
+      addHate(actor.id, 2.8, stat(actor,"stealth"));
+    }
+
+    // “반론을 막는다”: 해당 토픽에서 반론/변호 동조를 봉쇄
+    function applyBlockRebuttal(actor){
+      addHate(actor.id, 10 + stat(actor,"charisma")*0.06, stat(actor,"stealth"));
+    }
+
+    // “과장”: 연기(우호) 공격/회복 강화 + 어그로 약간 증가
+    function exaggerateMultiplier(){
+      return { trust: 1.0, favor: 1.35, aggro: 1.12 };
+    }
+
+    // “동의 구함”: 더 많은 동조자
+    function agreeMoreMultiplier(){
+      return { extraSupporters: 2, aggro: 1.10 };
+    }
+
+    /***********************
+     * 커맨드 실행기 (로그는 임시) *
+     ***********************/
+    function logCmd(speaker, cmdName, target=null){
+      if(target){
+        addLog(`${speaker.name}:[${cmdName}] (${target.name} 대상)`, "");
+      }else{
+        addLog(`${speaker.name}:[${cmdName}]`, "");
+      }
+    }
+
+    function executeTurn(){
+      // 1턴 = "한 명의 발언 + (필요시) 반응 몇 개" 로 처리
+      const alive = aliveChars();
       if(alive.length < 2){
-        addLog("밤 자유행동: 함께할 인원이 부족합니다.");
-        return;
-      }
-      const picks = Math.min(3, Math.max(1, Math.floor(Math.random()*3)+1));
-      for(let i=0;i<picks;i++){
-        const a = alive[Math.floor(Math.random()*alive.length)];
-        let b = alive[Math.floor(Math.random()*alive.length)];
-        if(a===b) b = alive[(alive.indexOf(a)+1) % alive.length];
-        addLog(`밤 자유행동: ${a.name} ↔ ${b.name} 함께 시간을 보냈다. (우호도 상승: 구현 대상)`);
-      }
-    }
-
-    function gnosiaAttack(){
-      const candidates = characters.slice();
-      if(candidates.length === 0){
-        addLog("밤 습격: 대상이 없습니다.");
-        return;
-      }
-      const scored = candidates.map(c=>{
-        const s = c.stats;
-        const p = c.pers;
-        const score =
-          (50 - (s.stealth ?? 0)) * 0.8 +
-          (s.logic ?? 0) * 0.6 +
-          (p.desire ?? 0) * 10 +
-          (s.charisma ?? 0) * 0.3;
-        return { c, score };
-      }).sort((a,b)=>b.score - a.score);
-
-      const victim = scored[0].c;
-      addLog(`밤 습격: ${victim.name}이(가) 그노시아에게 습격당했습니다.`, "bad");
-    }
-
-    el("runBtn").addEventListener("click", ()=>{
-      if(characters.length < 5){
-        alert("캐릭터가 5명 이상이어야 실행할 수 있습니다.");
+        addLog("진행 불가: 생존 인원이 부족합니다.", "warn");
         return;
       }
 
-      if(dayTurn < 5){
-        dayTurn++;
-        addLog(`낮 턴 ${dayTurn}/5 진행...`, "tag");
-        const speaker = characters[Math.floor(Math.random()*characters.length)];
-        addLog(`${speaker.name}:[의심한다] (임시) 누군가 수상해.`, "");
+      // 발언자 선택: 말이 적고(스텔스 높음) 어그로 낮은 쪽이 더 오래 살아남는 경향
+      const speaker = weightedPick(alive.map(c=>{
+        const st = statusOf(c.id);
+        const w = 1.0 + (1 - st.hate/120) + (1 - st.talk/40) + (stat(c,"stealth")/120);
+        return { item:c, w: Math.max(0.05, w) };
+      }));
 
-        if(dayTurn === 5){
-          addLog("낮이 종료되었습니다. 밤으로 넘어갑니다.", "tag");
-          nightStep = 0;
+      talk(speaker.id, 1);
+
+      // 수다를 너무 많이 떨면 '시끄러워' 트리거가 나올 수 있음
+      const speakerTalky = statusOf(speaker.id).talk >= 4;
+
+      // 발언자가 선택할 "의도"
+      // - 논리성향↑ : 의심/투표 유도
+      // - 상냥함↑ : 감싸기/변호
+      // - 사회성↑ : 잡담/협력
+      const pLog = pers(speaker,"logical");
+      const pKind = pers(speaker,"kindness");
+      const pSoc  = pers(speaker,"social");
+
+      // 가능한 주요 행동 후보
+      const candidates = [];
+
+      // 의심한다
+      if(canUse(speaker, "의심한다", {kind:"free"})){
+        candidates.push({ cmd:"의심한다", w: 0.9 + pLog*1.2 + pers(speaker,"desire")*0.7 });
+      }
+
+      // 감싼다
+      if(canUse(speaker, "감싼다", {kind:"free"})){
+        candidates.push({ cmd:"감싼다", w: 0.6 + pKind*1.5 });
+      }
+
+      // 잡담한다
+      if(canUse(speaker, "잡담한다", {kind:"free"})){
+        candidates.push({ cmd:"잡담한다", w: 0.25 + pSoc*1.1 });
+      }
+
+      // 협력하자(협력 중 아닐 때만)
+      if(canUse(speaker, "협력하자", {kind:"free"}) && !statusOf(speaker.id).coopWith){
+        candidates.push({ cmd:"협력하자", w: 0.18 + pSoc*0.9 + pKind*0.6 });
+      }
+
+      // 역할 관련(현재는 영향 미미)
+      if(canUse(speaker, "역할을 밝힌다", {kind:"free"})){
+        candidates.push({ cmd:"역할을 밝힌다", w: 0.08 + pers(speaker,"courage")*0.45 });
+      }
+
+      // 인간이라고 말해(압박)
+      if(canUse(speaker, "인간이라고 말해", {kind:"free"})){
+        candidates.push({ cmd:"인간이라고 말해", w: 0.10 + pLog*0.6 });
+      }
+
+      const chosen = weightedPick(candidates.map(x=>({item:x.cmd, w:x.w})));
+
+      // 실행
+      if(chosen === "잡담한다"){
+        logCmd(speaker,"잡담한다");
+        // 최대 3명 참여, 상호 우호 상승 + speaker 어그로 감소(스텔스 기반)
+        const others = alive.filter(x=>x.id!==speaker.id);
+        const participants = [speaker];
+        const count = Math.min(3, others.length);
+        for(let i=0;i<count;i++){
+          const pick = randPick(others);
+          if(!participants.some(p=>p.id===pick.id)) participants.push(pick);
+        }
+        for(let i=0;i<participants.length;i++){
+          for(let j=i+1;j<participants.length;j++){
+            const a = participants[i], b=participants[j];
+            modRel(a.id,b.id, +0.5, +3.5);
+            modRel(b.id,a.id, +0.5, +3.5);
+          }
+        }
+        const st = statusOf(speaker.id);
+        st.hate = clamp(st.hate - (3 + stat(speaker,"stealth")*0.12), 0, 100);
+        return;
+      }
+
+      if(chosen === "협력하자"){
+        const target = pickHelperTarget(speaker);
+        if(!target){ logCmd(speaker,"협력하자"); return; }
+        logCmd(speaker,"협력하자", target);
+        // 상대가 받아들일 확률(귀염성 + 우호 기반)
+        const r = getRel(target.id, speaker.id);
+        const accept = clamp(0.20 + stat(speaker,"charm")/120 + r.favor/200 + pers(target,"social")*0.25, 0.1, 0.9);
+        if(rand() < accept){
+          applyCoop(speaker, target);
+          addLog(`→ ${target.name}은(는) 협력을 받아들였다.`, "ok");
+        }else{
+          addLog(`→ ${target.name}은(는) 협력을 거절했다.`, "warn");
+          // 거절 시 관계 약간 하락
+          modRel(speaker.id, target.id, -1.0, -3.0);
         }
         return;
       }
 
-      nightStep++;
-      if(nightStep === 1){
-        addLog("밤 1/2: 자유행동", "tag");
-        nightFreeActions();
+      if(chosen === "역할을 밝힌다"){
+        logCmd(speaker,"역할을 밝힌다");
+        addHate(speaker.id, 2.0, stat(speaker,"stealth"));
+        // 역할 시스템 들어오면 여기서 실제 CO 처리
         return;
       }
-      if(nightStep === 2){
-        addLog("밤 2/2: 습격 처리", "tag");
-        gnosiaAttack();
-        dayTurn = 0;
-        nightStep = 0;
-        addLog("밤이 종료되었습니다. 다음 날로 넘어갑니다.", "tag");
-        return;
-      }
-    });
 
-    // 초기 로그
-    addLog("로드 완료. 캐릭터를 5명 이상 만들고 실행 버튼을 눌러주세요.", "ok");
-    renderCharacters();
-  </script>
-</body>
-</html>
+      if(chosen === "인간이라고 말해"){
+        logCmd(speaker,"인간이라고 말해");
+        // 모두가 “나는 인간이다”라고 말하도록 압박: 말 안 하거나 끊으면 신뢰 하락
+        for(const a of alive){
+          if(a.id === speaker.id) continue;
+          const willSpeak = clamp(0.55 + pers(a,"cheer")*0.2 + pers(a,"social")*0.2 - (statusOf(a.id).hate/220), 0.15, 0.95);
+          if(rand() < willSpeak){
+            addLog(`  ${a.name}:[인간이라고 말해] (응답)`, "tag");
+            talk(a.id, 1);
+            addHate(a.id, 1.5, stat(a,"stealth"));
+          }else{
+            // 침묵 = 수상
+            addLog(`  ${a.name}:(침묵)`, "warn");
+            for(const l of alive){
+              if(l.id===a.id) continue;
+              modRel(l.id, a.id, -3.2, -1.2);
+            }
+          }
+        }
+        addHate(speaker.id, 5.5, stat(speaker,"stealth"));
+        return;
+      }
+
+      if(chosen === "감싼다"){
+        const target = pickDefendTarget(speaker);
+        if(!target){ logCmd(speaker,"감싼다"); return; }
+        logCmd(speaker,"감싼다", target);
+
+        // 회복량
+        const L = stat(speaker,"logic");
+        const A = stat(speaker,"acting");
+        applyTrustFavorHeal(speaker, target, L, A, 0.8);
+
+        // 동조자
+        const supporters = pickSupporters(speaker, target, "cover");
+        let totalL = L, totalA = A;
+        for(const s of supporters){
+          if(!canUse(s, "함께 감싼다", {kind:"after_cover"})) continue;
+          logCmd(s,"함께 감싼다", target);
+          talk(s.id, 1);
+          totalL += stat(s,"logic")*0.55;
+          totalA += stat(s,"acting")*0.55;
+          addHate(s.id, 2.5, stat(s,"stealth"));
+        }
+        // 동조 효과 재적용(강화)
+        applyTrustFavorHeal(speaker, target, totalL-L, totalA-A, 0.2);
+
+        // 반론(반박) 가능
+        const rebutter = pickRebutterAfterCover(speaker, target);
+        if(rebutter){
+          runRebuttal(rebutter, speaker, target, {kind:"after_cover", blockedRebuttal:false});
+        }
+
+        return;
+      }
+
+      // 기본: 의심한다
+      if(chosen === "의심한다"){
+        const target = pickAccuseTarget(speaker);
+        if(!target){ logCmd(speaker,"의심한다"); return; }
+        if(game.locks.humanLocked.has(target.id)){
+          // 반드시 인간이면 의심 자체를 덜 하도록
+          addLog(`${speaker.name}은(는) ${target.name}을(를) 의심하려 했지만 '반드시 인간' 판정 때문에 망설였다.`, "warn");
+          addHate(speaker.id, 1.0, stat(speaker,"stealth"));
+          return;
+        }
+
+        logCmd(speaker,"의심한다", target);
+
+        // 공격량(로직/연기)
+        let totalL = stat(speaker,"logic");
+        let totalA = stat(speaker,"acting");
+
+        // 어그로 상승 + 말 많음으로 시끄러워 트리거
+        addHate(speaker.id, 4.5, stat(speaker,"stealth"));
+
+        // 동조자(의심에 동의)
+        const supporters = pickSupporters(speaker, target, "accuse");
+        for(const s of supporters){
+          if(!canUse(s, "의심에 동의한다", {kind:"after_accuse", blockedRebuttal:false})) continue;
+          logCmd(s,"의심에 동의한다", target);
+          talk(s.id, 1);
+          totalL += stat(s,"logic")*0.55;
+          totalA += stat(s,"acting")*0.55;
+          addHate(s.id, 2.2, stat(s,"stealth"));
+        }
+
+        // 강화 커맨드들(과장/동의구함/반론막기) - speaker가 보유하면 확률적으로 사용
+        let multFavor = 1.0, multTrust = 1.0;
+        let extraSupport = 0;
+        let blockedRebuttal = false;
+
+        if(canUse(speaker, "과장해서 말한다", {kind:"after_accuse", blockedRebuttal:false}) && rand() < 0.35){
+          logCmd(speaker,"과장해서 말한다", target);
+          const m = exaggerateMultiplier();
+          multTrust *= m.trust;
+          multFavor *= m.favor;
+          addHate(speaker.id, 2.5*m.aggro, stat(speaker,"stealth"));
+        }
+
+        if(canUse(speaker, "동의를 구한다", {kind:"after_accuse", blockedRebuttal:false}) && rand() < 0.28){
+          logCmd(speaker,"동의를 구한다", target);
+          const m = agreeMoreMultiplier();
+          extraSupport += m.extraSupporters;
+          addHate(speaker.id, 3.0*m.aggro, stat(speaker,"stealth"));
+        }
+
+        if(canUse(speaker, "반론을 막는다", {kind:"after_accuse", blockedRebuttal:false}) && rand() < 0.18){
+          logCmd(speaker,"반론을 막는다", target);
+          blockedRebuttal = true;
+          applyBlockRebuttal(speaker);
+        }
+
+        // 동의 구함으로 추가 동조
+        if(extraSupport > 0){
+          const more = pickSupporters(speaker, target, "accuse").slice(0, extraSupport);
+          for(const s of more){
+            if(!canUse(s, "의심에 동의한다", {kind:"after_accuse", blockedRebuttal})) continue;
+            logCmd(s,"의심에 동의한다", target);
+            talk(s.id, 1);
+            totalL += stat(s,"logic")*0.45;
+            totalA += stat(s,"acting")*0.45;
+            addHate(s.id, 2.0, stat(s,"stealth"));
+          }
+        }
+
+        // 실제 피해 적용(집단 관계 변화)
+        applyTrustFavorDamage(speaker, target, totalL*multTrust, totalA*multFavor, 1.0);
+
+        // 타겟 반응(부정/슬퍼/얼버무림/반격/도움요청/속지마라)
+        if(isAlive(target.id)){
+          runTargetDefense(target, speaker, {kind:"being_accused", blockedRebuttal});
+        }
+
+        // 말이 너무 많으면 누군가 시끄러워를 쓸 수도
+        if(speakerTalky){
+          const caller = pickNoisyCaller(speaker, target);
+          if(caller && canUse(caller, "시끄러워", {kind:"after_talky"})){
+            logCmd(caller, "시끄러워", speaker);
+            applyNoisyCallout(caller, speaker);
+          }
+        }
+
+        return;
+      }
+    }
+
+    function pickNoisyCaller(talkySpeaker, currentTarget){
+      const alive = aliveChars().filter(x=>x.id!==talkySpeaker.id && x.id!==currentTarget.id);
+      if(!alive.length) return null;
+
+      // talkySpeaker를 싫어하는/덜 믿는 사람이 더 잘 지적
+      const items = alive.map(c=>{
+        const r = getRel(c.id, talkySpeaker.id);
+        const w = (50-r.favor)*0.9 + (50-r.trust)*0.7 + pers(c,"logical")*20;
+        return { item:c, w: Math.max(0.01, w) };
+      });
+      return weightedPick(items);
+    }
+
+    function pickRebutterAfterCover(coverer, target){
+      const alive = aliveChars().filter(x=>x.id!==coverer.id && x.id!==target.id);
+      if(!alive.length) return null;
+      // target을 의심하는 성향(논리/욕망)이 높고 target에 대한 호감이 낮을수록 반론
+      const items = alive.map(c=>{
+        const r = getRel(c.id, target.id);
+        const w = (50-r.trust)*0.8 + (50-r.favor)*0.9 + pers(c,"logical")*18 + pers(c,"desire")*10;
+        return { item:c, w: Math.max(0.01, w) };
+      });
+      const pick = weightedPick(items);
+      // 너무 자주 반론하지 않도록 확률 제한
+      return rand() < 0.55 ? pick : null;
+    }
+
+    function runRebuttal(rebutter, originalSpeaker, target, ctx){
+      if(!canUse(rebutter, "반론한다", ctx)) return;
+
+      logCmd(rebutter,"반론한다", target);
+      talk(rebutter.id, 1);
+
+      let totalL = stat(rebutter,"logic")*0.95;
+      let totalA = stat(rebutter,"acting")*0.85;
+
+      // 반론에 가담
+      const joiners = pickSupporters(rebutter, target, "accuse");
+      for(const j of joiners){
+        if(!canUse(j,"반론에 가담한다",{kind:"after_rebuttal", blockedRebuttal:false})) continue;
+        logCmd(j,"반론에 가담한다", target);
+        talk(j.id, 1);
+        totalL += stat(j,"logic")*0.45;
+        totalA += stat(j,"acting")*0.45;
+        addHate(j.id, 2.0, stat(j,"stealth"));
+      }
+
+      applyTrustFavorDamage(rebutter, target, totalL, totalA, 0.85);
+    }
+
+    function runTargetDefense(target, attacker, ctx){
+      // ctx.blockedRebuttal이면 변호/부정 등도 제한되는 느낌을 반영
+      const blocked = ctx.blockedRebuttal;
+
+      const options = [];
+      if(canUse(target,"부정한다",ctx)) options.push({cmd:"부정한다", w: 0.8 + pers(target,"logical")*0.8});
+      if(canUse(target,"슬퍼한다",ctx)) options.push({cmd:"슬퍼한다", w: 0.7 + pers(target,"cheer")*0.6});
+      if(canUse(target,"얼버무린다",ctx)) options.push({cmd:"얼버무린다", w: 0.45 + pers(target,"social")*0.3});
+      if(canUse(target,"반격한다",ctx)) options.push({cmd:"반격한다", w: 0.35 + pers(target,"courage")*0.5});
+      if(canUse(target,"도움을 요청한다",ctx)) options.push({cmd:"도움을 요청한다", w: 0.55 + pers(target,"social")*0.5});
+      if(canUse(target,"속지마라",ctx)) options.push({cmd:"속지마라", w: 0.25 + pers(target,"logical")*0.4});
+
+      if(!options.length) return;
+
+      // 반론 봉쇄면: 얼버무림/슬퍼 같은 방어 쪽을 더 택하게
+      const pick = weightedPick(options.map(o=>{
+        const bonus = blocked && (o.cmd==="얼버무린다" || o.cmd==="슬퍼한다") ? 0.7 : 0;
+        return { item:o.cmd, w: o.w + bonus };
+      }));
+
+      if(pick === "부정한다"){
+        logCmd(target,"부정한다", attacker);
+        talk(target.id, 1);
+        applyDeny(target);
+        // 부정 후, 변호자가 붙을 수도(봉쇄면 낮게)
+        const defender = pickDefender(target, attacker, blocked);
+        if(defender){
+          runDefend(defender, target, blocked);
+        }
+        return;
+      }
+
+      if(pick === "슬퍼한다"){
+        logCmd(target,"슬퍼한다", attacker);
+        talk(target.id, 1);
+        applySad(target);
+
+        // 슬퍼하면 대체로 옹호가 늘어남
+        const defender = pickDefender(target, attacker, blocked, true);
+        if(defender){
+          runDefend(defender, target, blocked, true);
+        }
+        return;
+      }
+
+      if(pick === "얼버무린다"){
+        logCmd(target,"얼버무린다", attacker);
+        talk(target.id, 1);
+        applyDeflect(target);
+        // 논의 종료 느낌: 이 턴에서 추가 응답 없음
+        addLog("→ 논의가 흐지부지 끝났다.", "warn");
+        return;
+      }
+
+      if(pick === "반격한다"){
+        logCmd(target,"반격한다", attacker);
+        talk(target.id, 1);
+        applyCounter(target, attacker);
+
+        // 반격에 동조 가능(의심 동조)
+        const joiners = pickSupporters(target, attacker, "accuse");
+        for(const j of joiners){
+          if(!canUse(j,"의심에 동의한다",{kind:"after_accuse", blockedRebuttal:false})) continue;
+          logCmd(j,"의심에 동의한다", attacker);
+          talk(j.id, 1);
+          applyTrustFavorDamage(j, attacker, stat(j,"logic")*0.45, stat(j,"acting")*0.45, 0.5);
+        }
+        return;
+      }
+
+      if(pick === "도움을 요청한다"){
+        const helper = pickHelperTarget(target);
+        if(!helper){ logCmd(target,"도움을 요청한다", attacker); return; }
+        logCmd(target,"도움을 요청한다", helper);
+        talk(target.id, 1);
+
+        const chance = applyAskHelp(target, helper);
+        if(rand() < chance && canUse(helper,"변호한다",{kind:"after_accuse", blockedRebuttal:blocked}) && !blocked){
+          runDefend(helper, target, blocked);
+        }else{
+          addLog(`→ ${helper.name}은(는) 망설였다.`, "warn");
+          modRel(helper.id, target.id, -1.0, -2.0);
+        }
+        return;
+      }
+
+      if(pick === "속지마라"){
+        logCmd(target,"속지마라", attacker);
+        talk(target.id, 1);
+        applyDontBeFooled(target, attacker);
+        return;
+      }
+    }
+
+    function pickDefender(defended, attacker, blocked, sadBonus=false){
+      if(blocked) return null;
+
+      const alive = aliveChars().filter(x=>x.id!==defended.id && x.id!==attacker.id);
+      if(!alive.length) return null;
+
+      const items = alive.map(c=>{
+        if(!canUse(c,"변호한다",{kind:"after_accuse", blockedRebuttal:false})) return {item:c, w:0.001};
+        const r = getRel(c.id, defended.id);
+        const w = r.favor*0.9 + r.trust*0.6 + pers(c,"kindness")*40 + (sadBonus?12:0);
+        return { item:c, w: Math.max(0.001, w) };
+      });
+
+      const pick = weightedPick(items);
+      // 너무 매번 변호 나오면 과하니 확률 제한
+      const p = sadBonus ? 0.6 : 0.4;
+      return rand() < p ? pick : null;
+    }
+
+    function runDefend(defender, defended, blocked, sadBonus=false){
+      if(blocked) return;
+      logCmd(defender,"변호한다", defended);
+      talk(defender.id, 1);
+
+      // 변호의 회복량
+      let totalL = stat(defender,"logic");
+      let totalA = stat(defender,"acting");
+
+      applyTrustFavorHeal(defender, defended, totalL, totalA, 0.9);
+
+      // 변호 가담
+      const joiners = pickSupporters(defender, defended, "cover");
+      for(const j of joiners){
+        if(!canUse(j,"변호에 가담한다",{kind:"after_defend", blockedRebuttal:false})) continue;
+        logCmd(j,"변호에 가담한다", defended);
+        talk(j.id, 1);
+        totalL += stat(j,"logic")*0.45;
+        totalA += stat(j,"acting")*0.45;
+        addHate(j.id, 1.8, stat(j,"stealth"));
+      }
+      // 가담분 보정
+      applyTrustFavorHeal(defender, defended, totalL - stat(defender,"logic"), totalA - stat(defender,"acting"), 0.2);
+
+      // defended가 감사할 수 있음
+      if(canUse(defended,"감사한다",{kind:"after_being_covered"} ) && rand() < 0.45){
+        logCmd(defended,"감사한다", defender);
+        talk(defended.id, 1);
+        applyThanks(defended, defender);
+      }
+    }
+
+    /***********************
+     * 밤 처리 (자유행동/습격)
+     ***********************/
+    function nightFreeActions(){
+      const alive = aliveChars();
+      if(alive.length < 2){
+        addLog("밤 자유행동: 함께할 인원이 부족합니다.", "warn");
+        return;
+      }
+
+      const picks = Math.min(3, Math.max(1, Math.floor(Math.random()*3)+1));
+      for(let i=0;i<picks;i++){
+        const a = randPick(alive);
+        let b = randPick(alive);
+        if(a.id === b.id) b = alive[(alive.indexOf(a)+1) % alive.length];
+
+        // 함께 시간: 상호 우호 증가 + 어그로 약간 감소(안정감)
+        modRel(a.id, b.id, +0.5, +4.0);
+        modRel(b.id, a.id, +0.5, +4.0);
+
+        statusOf(a.id).hate = clamp(statusOf(a.id).hate - (1.0 + stat(a,"stealth")*0.03),*
