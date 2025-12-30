@@ -1,251 +1,259 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
   <style>
-    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
-    input, select, button { margin: 4px; }
-    fieldset { margin-bottom: 10px; }
-    label { display: block; margin-top: 5px; }
-    #log { border: 1px solid #444; height: 250px; overflow-y: auto; padding: 5px; background: #000; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
-    .char-entry { border:1px solid #444; padding:5px; margin-bottom:5px; background:#222; }
+    :root{
+      --bg:#111;
+      --panel:#151515;
+      --panel2:#0d0d0d;
+      --txt:#eee;
+      --muted:#aaa;
+      --line:#3a3a3a;
+      --accent:#7bdcff;
+      --bad:#ff6b6b;
+      --ok:#7CFF9B;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      padding:16px;
+      background:var(--bg);
+      color:var(--txt);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    h1{ margin:0 0 12px; font-size:28px; }
+    h2{ margin:16px 0 8px; font-size:18px; }
+    h3{ margin:10px 0 6px; font-size:14px; color:var(--muted); font-weight:600; }
+
+    .wrap{
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .card{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:flex-end;
+    }
+
+    .field{
+      min-width: 180px;
+      flex: 1 1 220px;
+    }
+
+    .label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:0 0 4px;
+    }
+
+    input, select, button{
+      font: inherit;
+      font-size: 13px;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--txt);
+      border-radius: 8px;
+      padding: 8px 10px;
+      outline: none;
+    }
+    input:focus, select:focus{ border-color: var(--accent); }
+
+    input[type="number"]{
+      width: 100%;
+      max-width: 120px;
+    }
+
+    button{
+      cursor:pointer;
+      background: #1a1a1a;
+    }
+    button:hover{ border-color: var(--accent); }
+    button:disabled{
+      cursor:not-allowed;
+      opacity: .45;
+    }
+
+    fieldset{
+      margin: 10px 0 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.18);
+    }
+    legend{
+      padding: 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ✅ 스테이터스/성격: 보기 좋은 “카드형 그리드” */
+    .kv-grid{
+      display:grid;
+      gap: 8px;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+    }
+    @media (max-width: 1100px){
+      .kv-grid{ grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+    }
+    @media (max-width: 700px){
+      .kv-grid{ grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
+
+    .kv{
+      border:1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .kv .k{
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .kv .k .hint{
+      color:#8c8c8c;
+      font-size: 11px;
+    }
+    .kv .v input{
+      width:100%;
+      max-width:none;
+      padding: 8px 10px;
+    }
+
+    /* ✅ 커맨드 체크: 멀티컬럼 */
+    .cmd-grid{
+      display:grid;
+      gap: 6px 12px;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      align-items:start;
+    }
+    @media (max-width: 1100px){
+      .cmd-grid{ grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+    }
+    @media (max-width: 800px){
+      .cmd-grid{ grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+    }
+    @media (max-width: 520px){
+      .cmd-grid{ grid-template-columns: 1fr; }
+    }
+
+    .cmd{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.15);
+    }
+    .cmd input{ width:16px; height:16px; }
+    .cmd .name{ font-size: 13px; }
+    .cmd .req{
+      margin-left:auto;
+      font-size:11px;
+      color:#8c8c8c;
+      white-space:nowrap;
+    }
+    .cmd.disabled{
+      opacity:.45;
+    }
+
+    .toolbar{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top: 10px;
+    }
+    .toolbar input[type="file"]{
+      padding: 6px 8px;
+      max-width: 280px;
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 1000px){
+      .two-col{ grid-template-columns: 1fr; }
+    }
+
+    #charList{
+      max-height: 260px;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.18);
+      padding: 10px;
+    }
+    .char-entry{
+      border:1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .char-entry .top{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      margin-bottom: 6px;
+    }
+    .char-entry .top b{ font-size: 13px; }
+    .char-entry .mini{
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    #log{
+      height: 260px;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius: 10px;
+      background: #000;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .logline{ margin:0 0 6px; }
+    .tag{ color: var(--accent); }
+    .bad{ color: var(--bad); }
+    .ok{ color: var(--ok); }
+
+    .note{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
   </style>
 </head>
+
 <body>
+  <div class="wrap">
+    <h1>그노시아 시뮬레이터</h1>
 
-<h1>그노시아 시뮬레이터</h1>
-
-<h2>캐릭터 생성</h2>
-<div>
-  <label>이름: <input id="name" placeholder="이름"></label>
-  <label>성별: 
-    <select id="gender">
-      <option value="남성">남성</option>
-      <option value="여성">여성</option>
-      <option value="범성">범성</option>
-    </select>
-  </label>
-  <label>나이: <input id="age" type="number" min="0" placeholder="나이"></label>
-</div>
-
-<fieldset>
-  <legend>스테이터스 (0~50)</legend>
-  <div class="grid">
-    <label>카리스마: <input id="charisma" type="number" min="0" max="50"></label>
-    <label>논리력: <input id="logic" type="number" min="0" max="50"></label>
-    <label>연기력: <input id="acting" type="number" min="0" max="50"></label>
-    <label>귀염성: <input id="charm" type="number" min="0" max="50"></label>
-    <label>스텔스: <input id="stealth" type="number" min="0" max="50"></label>
-    <label>직감: <input id="intuition" type="number" min="0" max="50"></label>
-  </div>
-</fieldset>
-
-<fieldset>
-  <legend>성격 (0.00~1.00)</legend>
-  <div class="grid">
-    <label>쾌활함: <input id="cheer" type="number" min="0" max="1" step="0.01"></label>
-    <label>사회성: <input id="social" type="number" min="0" max="1" step="0.01"></label>
-    <label>논리성향: <input id="logical" type="number" min="0" max="1" step="0.01"></label>
-    <label>상냥함: <input id="kindness" type="number" min="0" max="1" step="0.01"></label>
-    <label>욕망: <input id="desire" type="number" min="0" max="1" step="0.01"></label>
-    <label>용기: <input id="courage" type="number" min="0" max="1" step="0.01"></label>
-  </div>
-</fieldset>
-
-<h3>사용 가능한 커맨드 선택 (체크)</h3>
-<div id="commandList" class="grid">
-  <!-- JS에서 커맨드 체크박스 자동 생성 -->
-</div>
-
-<button id="addChar">캐릭터 추가</button>
-<button id="runBtn" disabled>실행</button>
-<button id="saveBtn">세이브</button>
-<input type="file" id="loadFile">
-<button id="loadBtn">로드</button>
-
-<h2>캐릭터 목록</h2>
-<div id="charList"></div>
-
-<h2>게임 로그</h2>
-<div id="log"></div>
-
-<script type="module">
-const commandData = [
-  { name: "의심한다", status: [], desc: "대상을 의심하여 논리력/연기력 감소, 카리스마 영향" },
-  { name: "의심에 동의한다", status: [], desc: "의심한 대상과 동조, 효과는 약함" },
-  { name: "부정한다", status: [], desc: "의심 반박, 논리력/연기력 회복" },
-  { name: "변호한다", status: [], desc: "대상 변호, 논리력/연기력 회복, 카리스마 영향" },
-  { name: "감싼다", status: [], desc: "대상 옹호, 논리력/연기력 상승, 카리스마 영향" },
-  { name: "감사한다", status: [], desc: "옹호자에게 답례, 호감 상승, 어그로 감소" },
-  { name: "반론한다", status: [], desc: "옹호/투표 제안 반박, 신뢰도/우호도 감소" },
-  { name: "시끄러워", status: [], desc: "말 많은 사람 비난" },
-  { name: "역할을 밝힌다", status: [], desc: "자신 역할 공개" },
-  { name: "자신도 밝힌다", status: [], desc: "역할 공개" },
-  { name: "역할을 밝혀라", status: ["charisma>=10"], desc: "확률로 역할 공개" },
-  { name: "과장해서 말한다", status: ["acting>=15"], desc: "동조 시 위력 강화, 어그로 증가" },
-  { name: "동의를 구한다", status: ["charisma>=25"], desc: "동조 유도" },
-  { name: "반론을 막는다", status: ["charisma>=40"], desc: "반론 봉쇄" },
-  { name: "얼버무린다", status: ["stealth>=25"], desc: "논의 종료, 옹호 불가" },
-  { name: "반격한다", status: ["logic>=25","acting>=25"], desc: "공격자 반격" },
-  { name: "도움 요청한다", status: ["acting>=30"], desc: "다른 사람에게 변호 요청" },
-  { name: "슬퍼한다", status: ["charm>=25"], desc: "동정심 유도" },
-  { name: "속지마라", status: ["intuition>=30"], desc: "거짓말 감지, 재사용 제한" },
-  { name: "투표해라", status: ["logic>=10"], desc: "투표 제안" },
-  { name: "투표하지 마라", status: ["logic>=15"], desc: "투표 반대 제안" },
-  { name: "반드시 인간이다", status: ["logic>=20"], desc: "대상을 인간으로 확정" },
-  { name: "반드시 적이다", status: ["logic>=20"], desc: "대상을 적으로 확정" },
-  { name: "전원 배제해라", status: ["logic>=30"], desc: "루프 내 역할 배제, 투표 확률 상승" },
-  { name: "잡담한다", status: ["stealth>=10"], desc: "참가자 우호도 상승, 어그로 감소" },
-  { name: "협력하자", status: ["charm>=15"], desc: "협력 제안, 우호도 최고" },
-  { name: "인간이라고 말해", status: ["intuition>=20"], desc: "자신 인간 발언" },
-  { name: "도게자한다", status: ["stealth>=35"], desc: "콜드슬립 회피" }
-];
-
-let characters = [];
-let dayTurn = 0;
-let nightStep = 0;
-
-const logDiv = document.getElementById('log');
-const charListDiv = document.getElementById('charList');
-const runBtn = document.getElementById('runBtn');
-
-function log(msg) {
-  const p = document.createElement('p');
-  p.textContent = msg;
-  logDiv.appendChild(p);
-  logDiv.scrollTop = logDiv.scrollHeight;
-}
-
-// 커맨드 체크박스 생성
-const cmdContainer = document.getElementById('commandList');
-commandData.forEach(cmd=>{
-  const label = document.createElement('label');
-  label.textContent = cmd.name;
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.dataset.name = cmd.name;
-  label.prepend(input);
-  cmdContainer.appendChild(label);
-});
-
-// 캐릭터 추가
-document.getElementById('addChar').addEventListener('click',()=>{
-  const name = document.getElementById('name').value;
-  const gender = document.getElementById('gender').value;
-  const age = parseInt(document.getElementById('age').value);
-  const charisma = parseInt(document.getElementById('charisma').value);
-  const logic = parseInt(document.getElementById('logic').value);
-  const acting = parseInt(document.getElementById('acting').value);
-  const charm = parseInt(document.getElementById('charm').value);
-  const stealth = parseInt(document.getElementById('stealth').value);
-  const intuition = parseInt(document.getElementById('intuition').value);
-  const cheer = parseFloat(document.getElementById('cheer').value);
-  const social = parseFloat(document.getElementById('social').value);
-  const logical = parseFloat(document.getElementById('logical').value);
-  const kindness = parseFloat(document.getElementById('kindness').value);
-  const desire = parseFloat(document.getElementById('desire').value);
-  const courage = parseFloat(document.getElementById('courage').value);
-
-  // 유효성 검사
-  if(!name || isNaN(age)|| age<0){
-    alert("이름과 나이를 올바르게 입력하세요.");
-    return;
-  }
-  const stats = [charisma,logic,acting,charm,stealth,intuition];
-  if(stats.some(s=>isNaN(s) || s<0 || s>50)){ alert("스테이터스는 0~50입니다."); return; }
-  const pers = [cheer,social,logical,kindness,desire,courage];
-  if(pers.some(p=>isNaN(p)||p<0||p>1)){ alert("성격은 0.00~1.00입니다."); return; }
-
-  // 사용가능 커맨드 체크
-  const availableCmds = [];
-  document.querySelectorAll('#commandList input').forEach(inp=>{
-    const cmd = commandData.find(c=>c.name===inp.dataset.name);
-    let allowed = true;
-    cmd.status.forEach(cond=>{
-      const [attr, val] = cond.split(">=");
-      if(eval(`${attr} < ${val}`)) allowed=false;
-    });
-    if(allowed) availableCmds.push(cmd.name);
-  });
-
-  const charObj = {name,gender,age,stats:{charisma,logic,acting,charm,stealth,intuition},pers,availableCmds};
-  characters.push(charObj);
-  renderCharList();
-  runBtn.disabled = characters.length<5;
-});
-
-function renderCharList(){
-  charListDiv.innerHTML="";
-  characters.forEach(c=>{
-    const div = document.createElement('div');
-    div.className="char-entry";
-    div.innerHTML=`<strong>${c.name}</strong> (${c.gender}, ${c.age})<br>
-      스테이터스: 카:${c.stats.charisma}, 논:${c.stats.logic}, 연:${c.stats.acting}, 귀:${c.stats.charm}, 스:${c.stats.stealth}, 직:${c.stats.intuition}<br>
-      성격: ${c.pers.map(p=>p.toFixed(2)).join(', ')}<br>
-      사용 가능 커맨드: ${c.availableCmds.join(', ')}`;
-    charListDiv.appendChild(div);
-  });
-}
-
-// 실행 버튼 (낮/밤 턴)
-runBtn.addEventListener('click',()=>{
-  if(dayTurn<5){
-    dayTurn++;
-    log(`낮 턴 ${dayTurn} 진행 중...`);
-    characters.forEach(c=>{
-      log(`${c.name}이(가) 오늘 무언가를 합니다. (임시 로그)`);
-    });
-    if(dayTurn===5){ log("낮 시간이 종료되었습니다."); nightStep=0; }
-  } else {
-    nightStep++;
-    if(nightStep===1){
-      log("밤 자유행동 시작...");
-      characters.forEach(c=>{
-        log(`${c.name}이 자유행동을 합니다. (임시 로그)`);
-      });
-    } else if(nightStep===2){
-      log("밤 습격 처리...");
-      // 피해자 결정 예시
-      const potentialTargets = characters.filter(c=>c.stats.desire>0.2 || Math.random()<0.5);
-      if(potentialTargets.length>0){
-        const victim = potentialTargets[Math.floor(Math.random()*potentialTargets.length)];
-        log(`${victim.name}이 그노시아에게 습격당했습니다.`);
-      } else {
-        log("이번 밤에는 피해자가 없습니다.");
-      }
-      dayTurn=0; nightStep=0;
-      log("밤 시간이 종료되었습니다. 낮으로 넘어갑니다.");
-    }
-  }
-});
-
-// 세이브
-document.getElementById('saveBtn').addEventListener('click',()=>{
-  const data = JSON.stringify(characters,null,2);
-  const blob = new Blob([data], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'gnosia_save.json';
-  a.click();
-});
-
-// 로드
-document.getElementById('loadBtn').addEventListener('click',()=>{
-  const file = document.getElementById('loadFile').files[0];
-  if(!file) return alert("파일을 선택하세요.");
-  const reader = new FileReader();
-  reader.onload = ()=> {
-    try {
-      characters = JSON.parse(reader.result);
-      renderCharList();
-      runBtn.disabled = characters.length<5;
-      log("세이브 데이터를 불러왔습니다.");
-    } catch(e){ alert("파일이 올바르지 않습니다."); }
-  };
-  reader.readAsText(file);
-});
-</script>
-</body>
-</html>
