@@ -9,18 +9,52 @@ export default class GameState {
 
     this.dayTurn = 0;
     this.nightStep = 0;
+
+    this.gameOver = false;
   }
 
   addCharacter(char) {
     this.characters.push(char);
   }
 
+  startGame() {
+    // 역할 배정
+    const shuffled = [...this.characters].sort(
+      () => Math.random() - 0.5
+    );
+
+    const gnosiaCount = Math.max(1, Math.floor(this.characters.length / 4));
+
+    shuffled.forEach((c, i) => {
+      if (i < gnosiaCount) {
+        c.role = "그노시아";
+      } else {
+        c.role = "선원";
+      }
+    });
+
+    Logger.write("게임이 시작되었습니다.");
+    Logger.write("역할이 비공개로 배정되었습니다.");
+  }
+
   execute() {
+    if (this.gameOver) {
+      Logger.write("게임은 이미 종료되었습니다.");
+      return;
+    }
+
+    // 첫 실행 시 게임 시작
+    if (this.dayCount === 1 && this.dayTurn === 0 && this.nightStep === 0) {
+      this.startGame();
+    }
+
     if (this.isDay) {
       this.processDay();
     } else {
       this.processNight();
     }
+
+    this.checkWinCondition();
   }
 
   processDay() {
@@ -68,14 +102,23 @@ export default class GameState {
     if (this.nightStep === 2) {
       Logger.write(`밤 ${this.dayCount}일차 - 그노시아 습격`);
 
-      const victims = this.characters.filter(c => c.alive);
-      if (victims.length > 0) {
-        const victim =
-          victims[Math.floor(Math.random() * victims.length)];
-        victim.alive = false;
-        Logger.write(
-          `${victim.name}이(가) 그노시아에 의해 습격당했습니다.`
+      const gnosiaAlive = this.characters.filter(
+        c => c.alive && c.role === "그노시아"
+      );
+
+      if (gnosiaAlive.length > 0) {
+        const victims = this.characters.filter(
+          c => c.alive && c.role === "선원"
         );
+
+        if (victims.length > 0) {
+          const victim =
+            victims[Math.floor(Math.random() * victims.length)];
+          victim.alive = false;
+          Logger.write(
+            `${victim.name}이(가) 그노시아에 의해 습격당했습니다.`
+          );
+        }
       }
 
       this.nightStep = 0;
@@ -84,5 +127,35 @@ export default class GameState {
 
       Logger.write("다음 날로 넘어갑니다.");
     }
+  }
+
+  checkWinCondition() {
+    const aliveGnosia = this.characters.filter(
+      c => c.alive && c.role === "그노시아"
+    ).length;
+
+    const aliveCrew = this.characters.filter(
+      c => c.alive && c.role === "선원"
+    ).length;
+
+    if (aliveGnosia === 0) {
+      this.endGame("선원");
+    } else if (aliveGnosia >= aliveCrew) {
+      this.endGame("그노시아");
+    }
+  }
+
+  endGame(winner) {
+    this.gameOver = true;
+
+    Logger.write(`게임 종료! ${winner} 진영의 승리입니다.`);
+    Logger.write("모든 캐릭터의 역할을 공개합니다.");
+
+    this.characters.forEach(c => {
+      const state = c.alive ? "생존" : "사망";
+      Logger.write(
+        `${c.name} : ${c.role} (${state})`
+      );
+    });
   }
 }
