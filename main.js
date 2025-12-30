@@ -1,195 +1,156 @@
-/***********************
- * 기본 데이터
- ***********************/
-const characters = [];
-let phase = "day";
-let turnCount = 0;
+// main.js - 모든 기획서 커맨드 적용
+let characters = [];
+let dayTurn = 0;
+let isNight = false;
 
-/***********************
- * 토론 상태
- ***********************/
-let discussionState = {
-  type: null,          // "의심" | "변호" | null
-  target: null,
-  supporters: [],
-  attackers: []
-};
+const charListEl = document.getElementById('charList');
+const logEl = document.getElementById('log');
+const runBtn = document.getElementById('runBtn');
 
-/***********************
- * 로그
- ***********************/
-const logBox = document.getElementById("log");
-function addLog(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  logBox.appendChild(div);
-  logBox.scrollTop = logBox.scrollHeight;
-}
-
-/***********************
- * 캐릭터 생성
- ***********************/
-document.getElementById("addChar").onclick = () => {
-  const c = {
-    name: name.value,
-    gender: gender.value,
-    age: Number(age.value),
+document.getElementById('addChar').addEventListener('click', () => {
+  const name = document.getElementById('name').value.trim();
+  if (!name) return alert("이름을 입력하세요.");
+  
+  const character = {
+    name,
+    gender: document.getElementById('gender').value,
+    age: Number(document.getElementById('age').value),
     status: {
-      charisma: Number(charisma.value),
-      logic: Number(logic.value),
-      acting: Number(acting.value),
-      charm: Number(charm.value),
-      stealth: Number(stealth.value),
-      intuition: Number(intuition.value)
+      charisma: Number(document.getElementById('charisma').value),
+      logic: Number(document.getElementById('logic').value),
+      acting: Number(document.getElementById('acting').value),
+      charm: Number(document.getElementById('charm').value),
+      stealth: Number(document.getElementById('stealth').value),
+      intuition: Number(document.getElementById('intuition').value)
     },
     personality: {
-      cheer: Number(cheer.value),
-      social: Number(social.value),
-      logical: Number(logical.value),
-      kindness: Number(kindness.value),
-      desire: Number(desire.value),
-      courage: Number(courage.value)
+      cheer: Number(document.getElementById('cheer').value),
+      social: Number(document.getElementById('social').value),
+      logical: Number(document.getElementById('logical').value),
+      kindness: Number(document.getElementById('kindness').value),
+      desire: Number(document.getElementById('desire').value),
+      courage: Number(document.getElementById('courage').value)
     },
-    trust: {},
-    favor: {},
-    aggro: 0
+    aggro: 0,
+    friendship: 0,
+    commandsUsed: {},
   };
-
-  characters.forEach(o => {
-    c.trust[o.name] = 0;
-    c.favor[o.name] = 0;
-    o.trust[c.name] = 0;
-    o.favor[c.name] = 0;
-  });
-
-  characters.push(c);
+  
+  characters.push(character);
   updateCharList();
+  
+  if (characters.length >= 5) runBtn.disabled = false;
+});
 
-  if (characters.length >= 5) {
-    runBtn.disabled = false;
-  }
-};
-
-/***********************
- * 캐릭터 목록
- ***********************/
 function updateCharList() {
-  charList.innerHTML = "";
-  characters.forEach(c => {
-    const li = document.createElement("li");
-    li.textContent = c.name;
-    charList.appendChild(li);
+  charListEl.innerHTML = '';
+  characters.forEach((char) => {
+    const li = document.createElement('li');
+    li.textContent = `${char.name} (${char.gender}, ${char.age}세) Aggro:${char.aggro} Friend:${char.friendship}`;
+    charListEl.appendChild(li);
   });
 }
 
-/***********************
- * 커맨드 정의
- ***********************/
-const COMMANDS = {
+runBtn.addEventListener('click', () => {
+  if (!isNight) runDayTurn();
+  else runNightPhase();
+});
 
-  "의심한다": {
-    canUse: () => discussionState.type === null,
-    effect: (user, target) => {
-      discussionState = {
-        type: "의심",
-        target,
-        supporters: [],
-        attackers: [user]
-      };
-      user.aggro += 2;
-      addLog(`${user.name}: ${target.name}는 수상해.`);
-    }
-  },
+function log(message) {
+  const p = document.createElement('p');
+  p.textContent = message;
+  logEl.appendChild(p);
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
-  "의심에 동의한다": {
-    canUse: () => discussionState.type === "의심",
-    effect: (user) => {
-      discussionState.attackers.push(user);
-      user.aggro += 1;
-      addLog(`${user.name}: 나도 의심돼.`);
-    }
-  },
-
-  "부정한다": {
-    canUse: (user) => discussionState.type === "의심" && discussionState.target === user,
-    effect: (user) => {
-      discussionState = { type: null, target: null, supporters: [], attackers: [] };
-      user.aggro -= 1;
-      addLog(`${user.name}: 그건 오해야.`);
-    }
-  },
-
-  /* ===== 변호 계열 ===== */
-
-  "변호한다": {
-    canUse: () => discussionState.type === "의심",
-    effect: (user) => {
-      discussionState.type = "변호";
-      discussionState.supporters.push(user);
-      user.aggro += 2;
-      addLog(`${user.name}: ${discussionState.target.name}는 아니야.`);
-    }
-  },
-
-  "변호에 가담한다": {
-    canUse: () => discussionState.type === "변호",
-    effect: (user) => {
-      discussionState.supporters.push(user);
-      user.aggro += 1;
-      addLog(`${user.name}: 나도 그렇게 생각해.`);
-    }
-  },
-
-  "반론한다": {
-    canUse: () => discussionState.type === "변호",
-    effect: (user) => {
-      discussionState.type = "의심";
-      discussionState.attackers.push(user);
-      user.aggro += 2;
-      addLog(`${user.name}: 그래도 수상한 건 사실이야.`);
-    }
-  }
+// -----------------------------
+// 커맨드 정의 (기획서 모든 커맨드 적용)
+// -----------------------------
+const commands = {
+  // 기본 공격/옹호
+  '의심한다': { available: c => true, aggro: 2, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 의심한다 ${target.name}`)},
+  '의심에 동의한다': { available: c => true, aggro: 1, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 의심에 동의한다 ${target.name}`)},
+  '부정한다': { available: c => true, aggro: -1, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 부정한다 ${target.name}`)},
+  '변호한다': { available: c => true, aggro: -1, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 변호한다 ${target.name}`)},
+  '변호에 가담한다': { available: c => true, aggro: -1, friendship: 1, maxPerDay: null, execute: (from, target) => log(`${from.name} 변호에 가담한다 ${target.name}`)},
+  '감싼다': { available: c => true, aggro: -1, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 감싼다 ${target.name}`)},
+  '함께 감싼다': { available: c => true, aggro: -1, friendship: 1, maxPerDay: null, execute: (from, target) => log(`${from.name} 함께 감싼다 ${target.name}`)},
+  '감사한다': { available: c => true, aggro: -1, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 감사한다 ${target.name}`)},
+  '반론한다': { available: c => true, aggro: 2, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 반론한다 ${target.name}`)},
+  '반론에 가담한다': { available: c => true, aggro: 1, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 반론에 가담한다 ${target.name}`)},
+  '시끄러워': { available: c => true, aggro: 1, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 시끄러워 ${target.name}`)},
+  '역할을 밝힌다': { available: c => true, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 역할을 밝힌다`)},
+  '자신도 밝힌다': { available: c => true, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 자신도 밝힌다`)},
+  '역할을 밝혀라': { available: c => c.status.charisma >= 10, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 역할을 밝혀라 ${target.name}`)},
+  '과장해서 말한다': { available: c => c.status.acting >= 15, aggro: 3, friendship: 1, maxPerDay: null, execute: (from, target) => log(`${from.name} 과장해서 말한다 ${target.name}`)},
+  '동의를 구한다': { available: c => c.status.charisma >= 25, aggro: 1, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 동의를 구한다 ${target.name}`)},
+  '반론을 막는다': { available: c => c.status.charisma >= 40, aggro: 5, friendship: 0, maxPerDay: null, execute: (from, target) => log(`${from.name} 반론을 막는다 ${target.name}`)},
+  '얼버무린다': { available: c => c.status.stealth >= 25, aggro: -1, friendship: 0, maxPerDay: null, execute: (from, target) => log(`${from.name} 얼버무린다`)},
+  '반격한다': { available: c => c.status.logic >= 25 && c.status.acting >= 25, aggro: 2, friendship: -1, maxPerDay: null, execute: (from, target) => log(`${from.name} 반격한다 ${target.name}`)},
+  '도움 요청한다': { available: c => c.status.acting >= 30, aggro: 0, friendship: 1, maxPerDay: null, execute: (from, target) => log(`${from.name} 도움 요청한다 ${target.name}`)},
+  '슬퍼한다': { available: c => c.status.charm >= 25, aggro: 0, friendship: 2, maxPerDay: null, execute: (from, target) => log(`${from.name} 슬퍼한다 ${target.name}`)},
+  '속지마라': { available: c => c.status.intuition >= 30, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 속지마라 ${target.name}`)},
+  '투표해라': { available: c => c.status.logic >= 10, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 투표해라 ${target.name}`)},
+  '투표하지 마라': { available: c => c.status.logic >= 15, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 투표하지 마라 ${target.name}`)},
+  '반드시 인간이다': { available: c => c.status.logic >= 20, aggro: 0, friendship: 2, maxPerDay: 1, execute: (from, target) => log(`${from.name} 반드시 인간이다 ${target.name}`)},
+  '반드시 적이다': { available: c => c.status.logic >= 20, aggro: 0, friendship: -2, maxPerDay: 1, execute: (from, target) => log(`${from.name} 반드시 적이다 ${target.name}`)},
+  '전원 배제해라': { available: c => c.status.logic >= 30, aggro: 0, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 전원 배제해라 ${target.name}`)},
+  '잡담한다': { available: c => c.status.stealth >= 10, aggro: -1, friendship: 1, maxPerDay: 1, execute: (from, target) => log(`${from.name} 잡담한다 ${target.name}`)},
+  '협력하자': { available: c => c.status.charm >= 15, aggro: 0, friendship: 3, maxPerDay: 1, execute: (from, target) => log(`${from.name} 협력하자 ${target.name}`)},
+  '인간이라고 말해': { available: c => c.status.intuition >= 20, aggro: 0, friendship: 1, maxPerDay: 1, execute: (from, target) => log(`${from.name} 인간이라고 말해`)},
+  '도게자한다': { available: c => c.status.stealth >= 35, aggro: -1, friendship: 0, maxPerDay: 1, execute: (from, target) => log(`${from.name} 도게자한다`)},
+  '침묵': { available: c => true, aggro: 0, friendship: 0, maxPerDay: null, execute: (from, target) => log(`${from.name} 침묵`)}
 };
 
-/***********************
- * 커맨드 실행
- ***********************/
-function executeCommand(user, command, target = null) {
-  if (!COMMANDS[command]) return;
-  if (!COMMANDS[command].canUse(user)) return;
-  COMMANDS[command].effect(user, target);
-}
-
-/***********************
- * 턴 진행
- ***********************/
-function runTurn() {
-  addLog(`--- 낮 / 턴 ${turnCount + 1} ---`);
-  turnCount++;
-
-  const user = characters[Math.floor(Math.random() * characters.length)];
-  const others = characters.filter(c => c !== user);
-  const target = others[Math.floor(Math.random() * others.length)];
-
-  if (!discussionState.type) {
-    executeCommand(user, "의심한다", target);
-  } else if (discussionState.type === "의심") {
-    Math.random() < 0.4
-      ? executeCommand(user, "의심에 동의한다")
-      : executeCommand(user, "변호한다");
-  } else if (discussionState.type === "변호") {
-    Math.random() < 0.5
-      ? executeCommand(user, "변호에 가담한다")
-      : executeCommand(user, "반론한다");
-  }
-
-  if (turnCount >= 5) {
-    addLog("=== 낮 종료 ===");
-    turnCount = 0;
+// -----------------------------
+// 낮 라운드
+// -----------------------------
+function runDayTurn() {
+  dayTurn++;
+  log(`--- 낮 턴 ${dayTurn} ---`);
+  
+  characters.forEach(char => {
+    const availableCmds = Object.keys(commands).filter(c => {
+      const cmd = commands[c];
+      const used = char.commandsUsed[c] || 0;
+      return cmd.available(char) && (cmd.maxPerDay === null || used < cmd.maxPerDay);
+    });
+    if (availableCmds.length === 0) return;
+    
+    const cmdKey = availableCmds[Math.floor(Math.random() * availableCmds.length)];
+    const target = characters[Math.floor(Math.random() * characters.length)];
+    
+    commands[cmdKey].execute(char, target);
+    char.commandsUsed[cmdKey] = (char.commandsUsed[cmdKey] || 0) + 1;
+  });
+  
+  updateCharList();
+  
+  if (dayTurn >= 5) {
+    log('--- 낮 종료 ---');
+    dayTurn = 0;
+    isNight = true;
   }
 }
 
-/***********************
- * 버튼 연결
- ***********************/
-runBtn.onclick = runTurn;
+// -----------------------------
+// 밤 라운드
+// -----------------------------
+let nightStep = 0;
+
+function runNightPhase() {
+  nightStep++;
+  if (nightStep === 1) {
+    log('--- 밤 자유행동 ---');
+    characters.forEach(char => {
+      const partner = characters[Math.floor(Math.random() * characters.length)];
+      if (partner !== char) log(`${char.name}는 ${partner.name}와 함께 시간을 보냈다.`);
+    });
+  } else if (nightStep === 2) {
+    log('--- 그노시아 습격 결과 ---');
+    const victim = characters[Math.floor(Math.random() * characters.length)];
+    log(`${victim.name}가 그노시아에 의해 습격당했습니다.`);
+    nightStep = 0;
+    isNight = false;
+  }
+}
