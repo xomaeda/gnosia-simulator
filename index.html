@@ -5,22 +5,22 @@
   <title>Gnosia Simulator</title>
   <style>
     body {
-      font-family: monospace;
       background: #111;
       color: #eee;
+      font-family: monospace;
       padding: 20px;
     }
-    button {
-      font-size: 16px;
-      padding: 10px;
+    input, select, button {
+      margin: 4px;
+    }
+    fieldset {
       margin-bottom: 10px;
     }
     #log {
-      white-space: pre-line;
       border: 1px solid #444;
-      padding: 10px;
-      height: 500px;
+      height: 300px;
       overflow-y: auto;
+      padding: 5px;
       background: #000;
     }
   </style>
@@ -29,8 +29,43 @@
 
 <h1>그노시아 시뮬레이터</h1>
 
-<button id="runBtn">실행</button>
+<h2>캐릭터 생성</h2>
 
+<input id="name" placeholder="이름">
+<select id="gender">
+  <option value="남성">남성</option>
+  <option value="여성">여성</option>
+  <option value="범성">범성</option>
+</select>
+<input id="age" type="number" placeholder="나이">
+
+<fieldset>
+  <legend>스테이터스 (0~50)</legend>
+  <input id="charisma" type="number" placeholder="카리스마">
+  <input id="logic" type="number" placeholder="논리력">
+  <input id="acting" type="number" placeholder="연기력">
+  <input id="charm" type="number" placeholder="귀염성">
+  <input id="stealth" type="number" placeholder="스텔스">
+  <input id="intuition" type="number" placeholder="직감">
+</fieldset>
+
+<fieldset>
+  <legend>성격 (0~50)</legend>
+  <input id="cheer" type="number" placeholder="쾌활함">
+  <input id="social" type="number" placeholder="사회성">
+  <input id="logical" type="number" placeholder="논리성향">
+  <input id="kindness" type="number" placeholder="상냥함">
+  <input id="desire" type="number" placeholder="욕망">
+  <input id="courage" type="number" placeholder="용기">
+</fieldset>
+
+<button id="addChar">캐릭터 추가</button>
+<button id="runBtn" disabled>실행</button>
+
+<h2>캐릭터 목록</h2>
+<ul id="charList"></ul>
+
+<h2>로그</h2>
 <div id="log"></div>
 
 <script type="module" src="./main.js"></script>
