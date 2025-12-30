@@ -1,42 +1,88 @@
-// 게임 전체 상태를 관리
+import Logger from "./Logger.js";
 
-class GameState {
-  constructor(characters) {
-    this.characters = characters;
+export default class GameState {
+  constructor() {
+    this.characters = [];
 
-    this.phase = "DAY"; // DAY, NIGHT_FREE, NIGHT_ATTACK
-    this.dayTurn = 1;
+    this.dayCount = 1;
+    this.isDay = true;
 
-    const n = characters.length;
+    this.dayTurn = 0;
+    this.nightStep = 0;
+  }
 
-    addCharacter(char) {
+  addCharacter(char) {
     this.characters.push(char);
+  }
+
+  execute() {
+    if (this.isDay) {
+      this.processDay();
+    } else {
+      this.processNight();
+    }
+  }
+
+  processDay() {
+    this.dayTurn++;
+
+    Logger.write(
+      `낮 ${this.dayCount}일차 - 턴 ${this.dayTurn}`
+    );
+
+    if (this.dayTurn >= 5) {
+      Logger.write("낮이 끝났습니다.");
+      this.isDay = false;
+      this.dayTurn = 0;
+    }
+  }
+
+  processNight() {
+    this.nightStep++;
+
+    if (this.nightStep === 1) {
+      Logger.write(`밤 ${this.dayCount}일차 - 자유행동`);
+
+      this.characters.forEach(c => {
+        if (!c.alive) return;
+
+        if (Math.random() < 0.5) {
+          Logger.write(`${c.name}은(는) 혼자 시간을 보냈습니다.`);
+        } else {
+          const others = this.characters.filter(
+            o => o !== c && o.alive
+          );
+          if (others.length > 0) {
+            const target =
+              others[Math.floor(Math.random() * others.length)];
+            Logger.write(
+              `${c.name}은(는) ${target.name}와 함께 시간을 보냈습니다.`
+            );
+          }
+        }
+      });
+
+      return;
     }
 
-    execute() {
-  // 기존에 만들었던 턴 진행 코드
-  }
+    if (this.nightStep === 2) {
+      Logger.write(`밤 ${this.dayCount}일차 - 그노시아 습격`);
 
+      const victims = this.characters.filter(c => c.alive);
+      if (victims.length > 0) {
+        const victim =
+          victims[Math.floor(Math.random() * victims.length)];
+        victim.alive = false;
+        Logger.write(
+          `${victim.name}이(가) 그노시아에 의해 습격당했습니다.`
+        );
+      }
 
-    // 관계도 행렬
-    this.trust = Array.from({ length: n }, () => Array(n).fill(0));
-    this.favor = Array.from({ length: n }, () => Array(n).fill(0));
-  }
+      this.nightStep = 0;
+      this.isDay = true;
+      this.dayCount++;
 
-  livingCharacters() {
-    return this.characters.filter(c => c.alive);
-  }
-
-  isGameOver() {
-    const alive = this.livingCharacters();
-    const gn = alive.filter(c => c.role === "GNOSIA").length;
-    const crew = alive.length - gn;
-
-    if (gn === 0) return "CREW";
-    if (gn >= crew) return "GNOSIA";
-    return null;
+      Logger.write("다음 날로 넘어갑니다.");
+    }
   }
 }
-
-module.exports = GameState;
-
