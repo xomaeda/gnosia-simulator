@@ -8,80 +8,107 @@
       background: #111;
       color: #eee;
       font-family: monospace;
+      margin: 0;
       padding: 20px;
     }
-    input, select, button {
-      margin: 2px;
-      padding: 4px;
+    h1,h2 { margin: 10px 0; }
+    .container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
     }
-    fieldset {
-      margin-bottom: 10px;
-      padding: 10px;
+    .panel {
+      background: #1a1a1a;
+      padding: 15px;
       border: 1px solid #444;
+      border-radius: 5px;
+      flex: 1 1 300px;
+      box-sizing: border-box;
     }
     label {
-      display: block;
-      margin-top: 5px;
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+    }
+    input, select, button {
+      padding: 4px;
+      margin-left: 5px;
+      background: #222;
+      border: 1px solid #555;
+      color: #eee;
+      width: 60px;
+    }
+    fieldset {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #444;
     }
     #charList {
       list-style: none;
       padding-left: 0;
+      max-height: 400px;
+      overflow-y: auto;
     }
     #log {
       border: 1px solid #444;
-      height: 300px;
+      height: 400px;
       overflow-y: auto;
       padding: 5px;
       background: #000;
-      margin-top: 10px;
       white-space: pre-wrap;
     }
+    button { width: 100%; margin-top: 5px; }
   </style>
 </head>
 <body>
 
 <h1>그노시아 시뮬레이터</h1>
 
-<h2>캐릭터 생성</h2>
+<div class="container">
+  <div class="panel">
+    <h2>캐릭터 생성</h2>
+    <label>이름 <input id="name" placeholder="이름"></label>
+    <label>성별 
+      <select id="gender">
+        <option value="남성">남성</option>
+        <option value="여성">여성</option>
+        <option value="범성">범성</option>
+      </select>
+    </label>
+    <label>나이 <input id="age" type="number" min="0" placeholder="나이"></label>
 
-<label>이름 <input id="name" placeholder="이름"></label>
-<label>성별 
-  <select id="gender">
-    <option value="남성">남성</option>
-    <option value="여성">여성</option>
-    <option value="범성">범성</option>
-  </select>
-</label>
-<label>나이 <input id="age" type="number" min="0" placeholder="나이"></label>
+    <fieldset>
+      <legend>스테이터스 (0~50)</legend>
+      <label>카리스마 <input id="charisma" type="number" min="0" max="50"></label>
+      <label>논리력 <input id="logic" type="number" min="0" max="50"></label>
+      <label>연기력 <input id="acting" type="number" min="0" max="50"></label>
+      <label>귀염성 <input id="charm" type="number" min="0" max="50"></label>
+      <label>스텔스 <input id="stealth" type="number" min="0" max="50"></label>
+      <label>직감 <input id="intuition" type="number" min="0" max="50"></label>
+    </fieldset>
 
-<fieldset>
-  <legend>스테이터스 (0~50)</legend>
-  <label>카리스마 <input id="charisma" type="number" min="0" max="50"></label>
-  <label>논리력 <input id="logic" type="number" min="0" max="50"></label>
-  <label>연기력 <input id="acting" type="number" min="0" max="50"></label>
-  <label>귀염성 <input id="charm" type="number" min="0" max="50"></label>
-  <label>스텔스 <input id="stealth" type="number" min="0" max="50"></label>
-  <label>직감 <input id="intuition" type="number" min="0" max="50"></label>
-</fieldset>
+    <fieldset>
+      <legend>성격 (0.00~1.00)</legend>
+      <label>쾌활함 <input id="cheer" type="number" min="0" max="1" step="0.01"></label>
+      <label>사회성 <input id="social" type="number" min="0" max="1" step="0.01"></label>
+      <label>논리성향 <input id="logical" type="number" min="0" max="1" step="0.01"></label>
+      <label>상냥함 <input id="kindness" type="number" min="0" max="1" step="0.01"></label>
+      <label>욕망 <input id="desire" type="number" min="0" max="1" step="0.01"></label>
+      <label>용기 <input id="courage" type="number" min="0" max="1" step="0.01"></label>
+    </fieldset>
 
-<fieldset>
-  <legend>성격 (0.00~1.00)</legend>
-  <label>쾌활함 <input id="cheer" type="number" min="0" max="1" step="0.01"></label>
-  <label>사회성 <input id="social" type="number" min="0" max="1" step="0.01"></label>
-  <label>논리성향 <input id="logical" type="number" min="0" max="1" step="0.01"></label>
-  <label>상냥함 <input id="kindness" type="number" min="0" max="1" step="0.01"></label>
-  <label>욕망 <input id="desire" type="number" min="0" max="1" step="0.01"></label>
-  <label>용기 <input id="courage" type="number" min="0" max="1" step="0.01"></label>
-</fieldset>
+    <button id="addChar">캐릭터 추가</button>
+    <button id="runBtn" disabled>실행</button>
+  </div>
 
-<button id="addChar">캐릭터 추가</button>
-<button id="runBtn" disabled>실행</button>
+  <div class="panel">
+    <h2>캐릭터 목록</h2>
+    <ul id="charList"></ul>
 
-<h2>캐릭터 목록</h2>
-<ul id="charList"></ul>
-
-<h2>로그</h2>
-<div id="log"></div>
+    <h2>로그</h2>
+    <div id="log"></div>
+  </div>
+</div>
 
 <script>
 const charListEl = document.getElementById("charList");
@@ -91,7 +118,6 @@ const runBtn = document.getElementById("runBtn");
 
 let characters = [];
 
-// 모든 커맨드 정의
 const allCommands = [
   "의심한다","의심에 동의한다","부정한다","변호한다","변호에 가담한다",
   "감싼다","함께 감싼다","감사한다","반론한다","반론에 가담한다",
@@ -154,7 +180,6 @@ addCharBtn.addEventListener("click", () => {
   runBtn.disabled = false;
 });
 
-// 커맨드 실행 (임시 로그)
 function executeCommand(actor, cmd) {
   const possibleTargets = characters.filter(c=>c!==actor);
   const target = possibleTargets[Math.floor(Math.random()*possibleTargets.length)];
@@ -169,5 +194,6 @@ runBtn.addEventListener("click", ()=>{
   });
 });
 </script>
+
 </body>
 </html>
