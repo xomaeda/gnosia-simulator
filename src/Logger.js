@@ -1,21 +1,16 @@
-class Logger {
-  static header(text) {
-    console.log("\n====================");
-    console.log(text);
-    console.log("====================");
+export default class Logger {
+  static logArea = document.getElementById("log");
+
+  static write(text) {
+    Logger.logArea.innerText += text + "\n";
+    Logger.logArea.scrollTop = Logger.logArea.scrollHeight;
   }
 
-  static log(text) {
-    console.log(text);
-  }
-
-  static revealRoles(characters) {
-    console.log("\n=== 역할 공개 ===");
-    characters.forEach(c => {
-      console.log(`${c.name} : ${c.role}`);
-    });
+  static separator(title) {
+    Logger.write("\n====================");
+    Logger.write(title);
+    Logger.write("====================");
   }
 }
 
-module.exports = Logger;
 
