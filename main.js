@@ -1,23 +1,48 @@
-// main.js
-// 이 파일은 "실행 버튼"과 "게임 로직"을 연결하는 역할만 한다.
-
 import GameState from "./src/GameState.js";
+import Character from "./src/Character.js";
 import Logger from "./src/Logger.js";
 
-// HTML이 전부 로드된 뒤에 실행되도록 보장
 window.onload = () => {
-  // 게임 상태 생성 (아직 실행 안 됨)
   const game = new GameState();
+  const list = document.getElementById("charList");
+  const runBtn = document.getElementById("runBtn");
 
-  // 실행 버튼 찾기
-  const runButton = document.getElementById("runBtn");
+  document.getElementById("addChar").onclick = () => {
+    const data = {
+      name: name.value,
+      gender: gender.value,
+      age: Number(age.value),
 
-  // 버튼 클릭 시 동작 정의
-  runButton.onclick = () => {
-    game.execute();
+      charisma: Number(charisma.value),
+      logic: Number(logic.value),
+      acting: Number(acting.value),
+      charm: Number(charm.value),
+      stealth: Number(stealth.value),
+      intuition: Number(intuition.value),
+
+      cheer: Number(cheer.value),
+      social: Number(social.value),
+      logical: Number(logical.value),
+      kindness: Number(kindness.value),
+      desire: Number(desire.value),
+      courage: Number(courage.value)
+    };
+
+    const char = new Character(data);
+    game.addCharacter(char);
+
+    const li = document.createElement("li");
+    li.innerText = char.name;
+    list.appendChild(li);
+
+    Logger.write(`${char.name}이(가) 추가되었습니다.`);
+
+    if (game.characters.length >= 5) {
+      runBtn.disabled = false;
+    }
   };
 
-  // 최초 안내 로그
-  Logger.separator("시뮬레이터 시작");
-  Logger.write("실행 버튼을 누르면 턴이 진행됩니다.");
+  runBtn.onclick = () => {
+    game.execute();
+  };
 };
