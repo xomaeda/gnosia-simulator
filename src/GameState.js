@@ -9,6 +9,15 @@ class GameState {
 
     const n = characters.length;
 
+    addCharacter(char) {
+    this.characters.push(char);
+    }
+
+    execute() {
+  // 기존에 만들었던 턴 진행 코드
+  }
+
+
     // 관계도 행렬
     this.trust = Array.from({ length: n }, () => Array(n).fill(0));
     this.favor = Array.from({ length: n }, () => Array(n).fill(0));
