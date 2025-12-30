@@ -1,260 +1,335 @@
-/***********************
+/************************
  * Gnosia Fan Simulator
- * main.js
- ***********************/
+ * Command Complete Ver.
+ ************************/
 
-/* =====================
-   기본 데이터 구조
-===================== */
+/* ========= 캐릭터 ========= */
 
 class Character {
-  constructor(config) {
-    this.name = config.name;
-    this.gender = config.gender;
-    this.age = config.age;
-
-    this.stats = {
-      charisma: config.stats.charisma,
-      logic: config.stats.logic,
-      acting: config.stats.acting,
-      charm: config.stats.charm,
-      stealth: config.stats.stealth,
-      intuition: config.stats.intuition,
-    };
-
-    this.personality = { ...config.personality };
-    this.commands = new Set(config.commands);
-
-    this.trust = {};     // 대상별 신뢰도
-    this.like = {};      // 대상별 우호도
+  constructor(cfg) {
+    this.name = cfg.name;
+    this.stats = cfg.stats;
+    this.personality = cfg.personality;
+    this.commands = new Set(cfg.commands);
+    this.trust = {};
+    this.like = {};
     this.aggro = 0;
-
-    this.role = null;    // 시작 시 할당, 비공개
     this.alive = true;
+    this.role = null;
   }
 }
 
-/* =====================
-   게임 상태
-===================== */
+/* ========= 게임 상태 ========= */
 
 const GameState = {
   characters: [],
-  phase: "DAY",          // DAY / NIGHT
-  turn: 0,               // 낮: 1~5
-  dayCount: 1,
-  log: [],
+  phase: "DAY",     // DAY / NIGHT
+  turn: 0,
+  day: 1,
   lastCommand: null,
   lastTarget: null,
+  log: []
 };
 
-/* =====================
-   로그 출력
-===================== */
+/* ========= 로그 ========= */
 
 function addLog(text) {
   GameState.log.push(text);
-  const logBox = document.getElementById("log");
-  if (logBox) {
-    logBox.value += text + "\n";
-    logBox.scrollTop = logBox.scrollHeight;
+  const box = document.getElementById("log");
+  if (box) {
+    box.value += text + "\n";
+    box.scrollTop = box.scrollHeight;
   }
 }
 
-/* =====================
-   커맨드 시스템
-===================== */
+/* ========= 커맨드 ========= */
 
 const Commands = {};
+const C = Commands; // 줄여쓰기
 
-/* ---- 2-2-1 커맨드 정의 ---- */
+/* ---- 기본 계열 ---- */
 
-Commands["의심한다"] = {
-  canUse(state, actor, target) {
-    return state.phase === "DAY" && state.turn >= 1;
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[의심한다] ${target.name}는 수상하다.`);
-    target.trust[actor.name] = (target.trust[actor.name] || 0) - actor.stats.logic * 0.2;
-    target.like[actor.name] = (target.like[actor.name] || 0) - actor.stats.acting * 0.2;
-    actor.aggro += 5;
-    state.lastCommand = "의심한다";
-    state.lastTarget = target;
+C["의심한다"] = {
+  canUse: () => true,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[의심한다] ${t.name}는 수상하다.`);
+    a.aggro += 5;
+    s.lastCommand = "의심한다";
+    s.lastTarget = t;
   }
 };
 
-Commands["의심에 동의한다"] = {
-  canUse(state, actor, target) {
-    return state.lastCommand === "의심한다";
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[의심에 동의한다] ${target.name}의 말에 동의한다.`);
-    actor.aggro += 2;
+C["의심에 동의한다"] = {
+  canUse: s => s.lastCommand === "의심한다",
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[의심에 동의한다] ${t.name}의 말에 동의한다.`);
+    a.aggro += 2;
   }
 };
 
-Commands["부정한다"] = {
-  canUse(state, actor) {
-    return state.lastTarget === actor;
-  },
-  apply(state, actor) {
-    addLog(`${actor.name}:[부정한다] 나는 의심받을 이유가 없다.`);
-    actor.aggro -= 3;
-    GameState.lastCommand = "부정한다";
+C["부정한다"] = {
+  canUse: (s, a) => s.lastTarget === a,
+  apply: (s, a) => {
+    addLog(`${a.name}:[부정한다] 나는 의심받을 이유가 없다.`);
+    a.aggro -= 3;
+    s.lastCommand = "부정한다";
   }
 };
 
-Commands["변호한다"] = {
-  canUse(state) {
-    return ["의심한다", "의심에 동의한다", "부정한다"].includes(state.lastCommand);
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[변호한다] ${target.name}는 괜찮아 보여.`);
-    actor.aggro += 3;
+C["변호한다"] = {
+  canUse: s => ["의심한다", "의심에 동의한다", "부정한다"].includes(s.lastCommand),
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[변호한다] ${t.name}는 문제없어 보여.`);
+    a.aggro += 3;
   }
 };
 
-Commands["감싼다"] = {
-  canUse(state) {
-    return state.phase === "DAY" && state.turn >= 1;
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[감싼다] ${target.name}를 믿고 싶다.`);
-    actor.aggro += 2;
+C["변호에 가담한다"] = {
+  canUse: s => s.lastCommand === "변호한다",
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[변호에 가담한다] 나도 같은 생각이야.`);
+    a.aggro += 1;
   }
 };
 
-Commands["감사한다"] = {
-  canUse(state, actor) {
-    return true;
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[감사한다] 고마워.`);
-    actor.aggro = Math.max(0, actor.aggro - actor.stats.charm * 0.2);
+C["감싼다"] = {
+  canUse: () => true,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[감싼다] ${t.name}를 믿고 싶다.`);
+    a.aggro += 2;
+    s.lastCommand = "감싼다";
   }
 };
 
-Commands["반론을 막는다"] = {
-  canUse(state, actor) {
-    return actor.stats.charisma >= 40;
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[반론을 막는다] 더 이상 반박하지 마.`);
-    actor.aggro += 15;
+C["함께 감싼다"] = {
+  canUse: s => s.lastCommand === "감싼다",
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[함께 감싼다] 나도 동의해.`);
+    a.aggro += 1;
   }
 };
 
-Commands["얼버무린다"] = {
-  canUse(state, actor) {
-    return actor.stats.stealth >= 25;
-  },
-  apply(state, actor) {
-    addLog(`${actor.name}:[얼버무린다] …아무튼 다음으로 넘어가자.`);
-    state.lastCommand = null;
-    state.lastTarget = null;
+C["감사한다"] = {
+  canUse: () => true,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[감사한다] 고마워.`);
+    a.aggro -= a.stats.charm * 0.2;
   }
 };
 
-Commands["반격한다"] = {
-  canUse(state, actor) {
-    return actor.stats.logic >= 25 && actor.stats.acting >= 25;
-  },
-  apply(state, actor, target) {
-    addLog(`${actor.name}:[반격한다] 오히려 네가 수상해.`);
-    actor.aggro += 8;
+C["반론한다"] = {
+  canUse: () => true,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[반론한다] 그건 좀 아니지 않아?`);
+    a.aggro += 4;
+    s.lastCommand = "반론한다";
   }
 };
 
-Commands["도게자한다"] = {
-  canUse(state, actor) {
-    return actor.stats.stealth >= 35;
-  },
-  apply(state, actor) {
-    addLog(`${actor.name}:[도게자한다] 살려줘!`);
-    actor.aggro -= 10;
+C["반론에 가담한다"] = {
+  canUse: s => s.lastCommand === "반론한다",
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[반론에 가담한다] 나도 반대야.`);
+    a.aggro += 2;
   }
 };
 
-/* =====================
-   턴 진행
-===================== */
-
-function advanceDayTurn() {
-  if (GameState.turn >= 5) {
-    addLog("낮 시간이 종료되었습니다.");
-    GameState.phase = "NIGHT";
-    GameState.turn = 0;
-    return;
+C["시끄러워"] = {
+  canUse: () => true,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[시끄러워] 말이 너무 많아.`);
+    a.aggro += 3;
   }
+};
 
-  GameState.turn += 1;
-  addLog(`--- 낮 ${GameState.dayCount}일차 / 턴 ${GameState.turn} ---`);
+/* ---- 고급 조건 ---- */
 
-  // 임시 자동 행동
-  const alive = GameState.characters.filter(c => c.alive);
-  if (alive.length >= 2) {
-    const actor = alive[Math.floor(Math.random() * alive.length)];
-    const target = alive.filter(c => c !== actor)[0];
-
-    if (actor.commands.has("의심한다")) {
-      Commands["의심한다"].apply(GameState, actor, target);
-    }
+C["역할을 밝힌다"] = {
+  canUse: () => true,
+  apply: (s, a) => {
+    addLog(`${a.name}:[역할을 밝힌다] 나는 내 역할을 공개한다.`);
   }
-}
+};
 
-function advanceNight() {
-  addLog("--- 밤 시간 ---");
-  addLog("각 캐릭터가 자유 행동을 했다.");
-  addLog("그노시아의 습격 결과가 발생했다.");
-  GameState.phase = "DAY";
-  GameState.dayCount += 1;
-}
+C["자신도 밝힌다"] = {
+  canUse: s => s.lastCommand === "역할을 밝힌다",
+  apply: (s, a) => {
+    addLog(`${a.name}:[자신도 밝힌다] 나 역시 같은 역할이다.`);
+  }
+};
 
-/* =====================
-   버튼 연결
-===================== */
+C["역할을 밝혀라"] = {
+  canUse: (s, a) => a.stats.charisma >= 10,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[역할을 밝혀라] ${t.name}, 정체를 밝혀.`);
+    a.aggro += 4;
+  }
+};
+
+C["과장해서 말한다"] = {
+  canUse: (s, a) => a.stats.acting >= 15,
+  apply: (s, a) => {
+    addLog(`${a.name}:[과장해서 말한다] 이건 정말 중요해!`);
+    a.aggro += 3;
+  }
+};
+
+C["동의를 구한다"] = {
+  canUse: (s, a) => a.stats.charisma >= 25,
+  apply: (s, a) => {
+    addLog(`${a.name}:[동의를 구한다] 다들 그렇게 생각하지?`);
+    a.aggro += 4;
+  }
+};
+
+C["반론을 막는다"] = {
+  canUse: (s, a) => a.stats.charisma >= 40,
+  apply: (s, a) => {
+    addLog(`${a.name}:[반론을 막는다] 더 이상 말하지 마.`);
+    a.aggro += 12;
+  }
+};
+
+C["얼버무린다"] = {
+  canUse: (s, a) => a.stats.stealth >= 25,
+  apply: (s, a) => {
+    addLog(`${a.name}:[얼버무린다] …다음으로 넘어가자.`);
+    s.lastCommand = null;
+    s.lastTarget = null;
+  }
+};
+
+C["반격한다"] = {
+  canUse: (s, a) => a.stats.logic >= 25 && a.stats.acting >= 25,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[반격한다] 오히려 네가 수상해.`);
+    a.aggro += 6;
+  }
+};
+
+C["도움을 요청한다"] = {
+  canUse: (s, a) => a.stats.acting >= 30,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[도움을 요청한다] ${t.name}, 날 도와줘.`);
+  }
+};
+
+C["슬퍼한다"] = {
+  canUse: (s, a) => a.stats.charm >= 25,
+  apply: (s, a) => {
+    addLog(`${a.name}:[슬퍼한다] 너무해…`);
+    a.aggro -= 5;
+  }
+};
+
+C["속지마라"] = {
+  canUse: (s, a) => a.stats.intuition >= 30,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[속지마라] ${t.name}는 거짓말을 하고 있어.`);
+  }
+};
+
+C["투표해라"] = {
+  canUse: (s, a) => a.stats.logic >= 10,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[투표해라] ${t.name}에게 투표하자.`);
+  }
+};
+
+C["투표하지 마라"] = {
+  canUse: (s, a) => a.stats.logic >= 15,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[투표하지 마라] ${t.name}는 아니다.`);
+  }
+};
+
+C["반드시 인간이다"] = {
+  canUse: (s, a) => a.stats.logic >= 20,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[반드시 인간이다] ${t.name}는 인간이다.`);
+  }
+};
+
+C["반드시 적이다"] = {
+  canUse: (s, a) => a.stats.logic >= 20,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[반드시 적이다] ${t.name}는 적이다.`);
+  }
+};
+
+C["전원 배제해라"] = {
+  canUse: (s, a) => a.stats.logic >= 30,
+  apply: (s, a) => {
+    addLog(`${a.name}:[전원 배제해라] 전부 정리하자.`);
+    a.aggro += 8;
+  }
+};
+
+C["잡담한다"] = {
+  canUse: (s, a) => a.stats.stealth >= 10,
+  apply: (s, a) => {
+    addLog(`${a.name}:[잡담한다] 잠깐 쉬자.`);
+    a.aggro -= 3;
+  }
+};
+
+C["협력하자"] = {
+  canUse: (s, a) => a.stats.charm >= 15,
+  apply: (s, a, t) => {
+    addLog(`${a.name}:[협력하자] ${t.name}, 같이 가자.`);
+  }
+};
+
+C["인간이라고 말해"] = {
+  canUse: (s, a) => a.stats.intuition >= 20,
+  apply: (s, a) => {
+    addLog(`${a.name}:[인간이라고 말해] 나는 인간이다.`);
+    a.aggro += 5;
+  }
+};
+
+C["도게자한다"] = {
+  canUse: (s, a) => a.stats.stealth >= 35,
+  apply: (s, a) => {
+    addLog(`${a.name}:[도게자한다] 제발 살려줘!`);
+    a.aggro -= 10;
+  }
+};
+
+/* ========= 실행 버튼 ========= */
 
 window.runSimulation = function () {
-  if (GameState.phase === "DAY") {
-    advanceDayTurn();
-  } else {
-    advanceNight();
+  const alive = GameState.characters.filter(c => c.alive);
+  if (alive.length < 2) return;
+
+  const actor = alive[Math.floor(Math.random() * alive.length)];
+  const target = alive.find(c => c !== actor);
+
+  for (let cmd of actor.commands) {
+    const def = Commands[cmd];
+    if (def && def.canUse(GameState, actor, target)) {
+      def.apply(GameState, actor, target);
+      break;
+    }
   }
 };
 
-/* =====================
-   초기 테스트용 캐릭터
-===================== */
+/* ========= 테스트 캐릭터 ========= */
 
 GameState.characters.push(
   new Character({
-    name: "A",
-    gender: "여성",
-    age: 22,
+    name: "테스트",
     stats: {
-      charisma: 30,
-      logic: 20,
-      acting: 15,
-      charm: 10,
-      stealth: 12,
-      intuition: 8
+      charisma: 40,
+      logic: 30,
+      acting: 30,
+      charm: 30,
+      stealth: 30,
+      intuition: 30
     },
-    personality: {
-      cheerful: 10,
-      social: 10,
-      logical: 5,
-      kind: 8,
-      desire: 4,
-      brave: 6
-    },
-    commands: [
-      "의심한다",
-      "의심에 동의한다",
-      "부정한다",
-      "변호한다",
-      "감싼다"
-    ]
+    personality: {},
+    commands: Object.keys(Commands)
   })
 );
 
-addLog("시뮬레이터 준비 완료.");
+addLog("커맨드 시스템 로드 완료.");
