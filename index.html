@@ -5,19 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
 
-  <!-- 캐시 방지(페이지가 안 바뀌는 느낌 방지) -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-
   <style>
     /* ✅ Cafe24 고운밤 */
-    @font-face {
-      font-family: 'Cafe24Gounnight';
-      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Gounnight.woff')
-           format('woff');
-      font-weight: normal;
-      font-style: normal;
+    @font-face{
+      font-family:'Cafe24Gounnight';
+      src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Gounnight.woff') format('woff');
+      font-weight:normal;
+      font-style:normal;
       font-display: swap;
     }
 
@@ -42,8 +36,8 @@
       letter-spacing: 0.02em;
     }
 
-    /* ✅ 폰트 강제 적용(덮어쓰기 방지) */
-    html, body, input, select, button, textarea, label, legend, fieldset, div, p, span, h1, h2, h3, h4, h5 {
+    /* ✅ 폰트 강제 적용 (안 먹는 문제 방지) */
+    html, body, input, select, button, textarea, label, div, span, p, h1, h2, h3 {
       font-family: 'Cafe24Gounnight', ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
     }
 
@@ -119,11 +113,11 @@
     .kv .k .hint{ color:#8c8c90; font-size: 11px; }
     .kv input{ width:100%; max-width:none; }
 
-    /* ✅ 커맨드 목록: B안(이름 위 / 조건 아래) */
+    /* ✅ 커맨드 목록: 반응형 + 스크롤 */
     .cmd-grid{
       display:grid;
-      gap: 8px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 10px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
       max-height: 320px;
       overflow: auto;
       padding: 10px;
@@ -132,41 +126,42 @@
       background: rgba(0,0,0,0.14);
     }
 
+    /* ✅ B안: 커맨드명 위 / 조건 아래 */
     .cmd{
-      display:grid;
-      grid-template-columns: 18px 1fr;
-      gap: 8px 10px;
-      align-items: start;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
       padding: 10px 10px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03);
-      min-height: 60px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      min-height: 64px;
     }
     .cmd input{
       width:16px; height:16px;
       margin-top: 2px;
+      flex: 0 0 auto;
     }
-
-    .cmd .text{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .cmd .text{
+      display:flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
     .cmd .name{
-      font-size: 14px;
-      white-space: normal;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: normal;         /* ✅ 말줄임 제거 */
       overflow: visible;
       text-overflow: clip;
-      line-height: 1.25;
+      word-break: keep-all;
     }
     .cmd .req{
-      font-size: 12px;
-      color: #8c8c90;
+      font-size: 11px;
+      color:#8c8c90;
       white-space: normal;
-      line-height: 1.2;
     }
-
-    .cmd.disabled{
-      opacity:.42;
-      background: rgba(255,255,255,0.02);
-    }
+    .cmd.disabled{ opacity:.42; }
 
     .toolbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top: 10px; }
     .toolbar input[type="file"]{ padding: 6px 8px; max-width: 280px; }
@@ -203,10 +198,20 @@
     .char-entry .top b{ font-size: 13px; }
     .char-entry .mini{ color: var(--muted); font-size: 11px; }
 
-    .char-actions{ display:flex; gap:6px; align-items:center; }
-    .btn-mini{ padding: 6px 8px; font-size: 12px; border-radius: 10px; }
-    .btn-warn{ border-color: rgba(255,107,107,0.6); }
-    .btn-warn:hover{ border-color: var(--bad); }
+    .char-actions{
+      display:flex; gap:6px; align-items:center;
+    }
+    .btn-mini{
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+    .btn-warn{
+      border-color: rgba(255,107,107,0.6);
+    }
+    .btn-warn:hover{
+      border-color: var(--bad);
+    }
 
     .logline{ margin:0 0 6px; }
     .tag{ color: var(--accent); }
@@ -224,6 +229,21 @@
       display:none;
     }
     .edit-banner b{ color: var(--accent); }
+
+    /* 스크롤바(선택) */
+    .cmd-grid::-webkit-scrollbar, #charList::-webkit-scrollbar, #log::-webkit-scrollbar{
+      width: 10px;
+      height: 10px;
+    }
+    .cmd-grid::-webkit-scrollbar-thumb, #charList::-webkit-scrollbar-thumb, #log::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,0.12);
+      border-radius: 999px;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    .cmd-grid::-webkit-scrollbar-track, #charList::-webkit-scrollbar-track, #log::-webkit-scrollbar-track{
+      background: rgba(0,0,0,0.2);
+      border-radius: 999px;
+    }
   </style>
 </head>
 
@@ -375,7 +395,6 @@
     let characters = [];
     let dayTurn = 0;
     let nightStep = 0;
-
     let editingIndex = null;
 
     function buildKVGrid(containerId, fields, defaultValue){
@@ -412,12 +431,13 @@
               return `${label} ≥ ${v}`;
             }).join(", ")
           : "조건 없음";
+
         row.innerHTML = `
           <input type="checkbox" data-cmd="${cmd.name}">
-          <div class="text">
-            <div class="name">${cmd.name}</div>
-            <div class="req">${reqText}</div>
-          </div>
+          <span class="text">
+            <span class="name">${cmd.name}</span>
+            <span class="req">${reqText}</span>
+          </span>
         `;
         cmdList.appendChild(row);
       });
