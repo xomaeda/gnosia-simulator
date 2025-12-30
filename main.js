@@ -5,10 +5,12 @@
 const characters = [];
 const MIN_CHARACTERS = 5;
 
-let phase = "setup";     // setup | day | night
+let phase = "setup";   // setup | day | night
 let dayCount = 1;
 let turnCount = 0;
 const MAX_TURNS = 5;
+
+let nightStep = 0;     // 0 = 밤 시작 전, 1 = 자유행동 후
 
 // ==============================
 // DOM
@@ -32,7 +34,7 @@ function getValue(id) {
   return Number(document.getElementById(id).value) || 0;
 }
 
-function randomAlive() {
+function aliveChars() {
   return characters.filter(c => c.alive);
 }
 
@@ -103,7 +105,7 @@ function updateCharacterList() {
   charList.innerHTML = "";
   characters.forEach((c, i) => {
     const li = document.createElement("li");
-    li.textContent = `${i + 1}. ${c.name}`;
+    li.textContent = `${i + 1}. ${c.name} ${c.alive ? "" : "(사망)"}`;
     charList.appendChild(li);
   });
 }
@@ -118,10 +120,17 @@ window.runSimulation = function () {
     phase = "day";
     turnCount = 0;
     log(`\n=== ${dayCount}일차 낮 시작 ===`);
+    return;
   }
 
   if (phase === "day") {
     runDayTurn();
+    return;
+  }
+
+  if (phase === "night") {
+    runNight();
+    return;
   }
 };
 
@@ -133,47 +142,37 @@ function runDayTurn() {
   turnCount++;
   log(`\n[낮 ${dayCount}일차 - ${turnCount}턴]`);
 
-  const speaker = randomFrom(randomAlive());
+  const speaker = randomFrom(aliveChars());
   const command = chooseCommand(speaker);
 
   executeCommand(speaker, command);
 
   if (turnCount >= MAX_TURNS) {
     phase = "night";
-    turnCount = 0;
+    nightStep = 0;
     log(`\n=== 낮 종료 → 밤이 되었습니다 ===`);
   }
 }
 
 // ==============================
-// 커맨드 선택 (성향 기반)
+// 커맨드
 // ==============================
 
 function chooseCommand(speaker) {
-  const cmds = [];
+  const cmds = ["의심", "감싸기"];
 
-  cmds.push("의심");
-  cmds.push("감싸기");
-
-  if (speaker.personality.cheer > 25) cmds.push("분위기메이커");
   if (speaker.personality.logical > 25) cmds.push("논리정리");
+  if (speaker.personality.cheer > 25) cmds.push("분위기메이커");
 
   return randomFrom(cmds);
 }
 
-// ==============================
-// 커맨드 실행
-// ==============================
-
 function executeCommand(speaker, command) {
-
-  const targets = randomAlive().filter(c => c !== speaker);
+  const targets = aliveChars().filter(c => c !== speaker);
   if (targets.length === 0) return;
-
   const target = randomFrom(targets);
 
   switch (command) {
-
     case "의심":
       log(`${speaker.name} → ${target.name} 를 의심했다.`);
       target.suspicion += 2;
@@ -187,17 +186,55 @@ function executeCommand(speaker, command) {
       break;
 
     case "논리정리":
-      log(`${speaker.name} 가 논리적으로 상황을 정리했다.`);
+      log(`${speaker.name} 가 논리적인 발언을 했다.`);
       speaker.aggro += 1;
       break;
 
     case "분위기메이커":
-      log(`${speaker.name} 가 분위기를 부드럽게 만들었다.`);
+      log(`${speaker.name} 가 분위기를 누그러뜨렸다.`);
       speaker.aggro -= 1;
       break;
+  }
+}
 
-    default:
-      log(`${speaker.name} 가 아무 말도 하지 않았다.`);
-      speaker.aggro += 1;
+// ==============================
+// 🌙 밤 시스템
+// ==============================
+
+function runNight() {
+
+  // 1단계: 자유행동
+  if (nightStep === 0) {
+    log(`\n[밤 ${dayCount}일차 – 자유행동]`);
+
+    aliveChars().forEach(c => {
+      log(`${c.name} 는 조용히 밤을 보냈다.`);
+    });
+
+    nightStep = 1;
+    log(`\n(버튼을 다시 누르면 밤이 끝납니다)`);
+    return;
+  }
+
+  // 2단계: 습격
+  if (nightStep === 1) {
+    log(`\n[밤 ${dayCount}일차 – 습격 발생]`);
+
+    const victims = aliveChars();
+    if (victims.length > 0) {
+      const victim = randomFrom(victims);
+      victim.alive = false;
+      log(`${victim.name} 가 밤 사이에 사망했다.`);
+    }
+
+    updateCharacterList();
+
+    // 다음 날로
+    dayCount++;
+    phase = "day";
+    turnCount = 0;
+    nightStep = 0;
+
+    log(`\n=== ${dayCount}일차 낮 시작 ===`);
   }
 }
