@@ -38,7 +38,7 @@ function boot() {
     runOneStep(state);
   };
 
-  addLog(state, "그노시아 시뮬레이터 준비 완료.");
+  addLog(state, "준비 완료.");
   addLog(state, "캐릭터를 5명 이상 추가하고 실행하세요.");
 }
 
