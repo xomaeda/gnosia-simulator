@@ -8,7 +8,8 @@
     input, select, button { margin: 4px; }
     fieldset { margin-bottom: 10px; }
     #log { border: 1px solid #444; height: 300px; overflow-y: auto; padding: 5px; background: #000; }
-    label { display: block; margin-top: 8px; }
+    label { display: block; margin-top: 5px; }
+    .char-section { margin-bottom: 15px; padding: 5px; border: 1px solid #444; }
   </style>
 </head>
 <body>
@@ -16,71 +17,154 @@
 <h1>그노시아 시뮬레이터</h1>
 
 <h2>캐릭터 생성</h2>
+<div class="char-section">
+  <label>이름: <input id="name" placeholder="이름"></label>
+  <label>성별:
+    <select id="gender">
+      <option value="남성">남성</option>
+      <option value="여성">여성</option>
+      <option value="범성">범성</option>
+    </select>
+  </label>
+  <label>나이: <input id="age" type="number" min="0" placeholder="나이"></label>
 
-<label for="name">이름</label>
-<input id="name" placeholder="이름">
+  <fieldset>
+    <legend>스테이터스 (0~50)</legend>
+    <label>카리스마: <input id="charisma" type="number" min="0" max="50" value="0"></label>
+    <label>논리력: <input id="logic" type="number" min="0" max="50" value="0"></label>
+    <label>연기력: <input id="acting" type="number" min="0" max="50" value="0"></label>
+    <label>귀염성: <input id="charm" type="number" min="0" max="50" value="0"></label>
+    <label>스텔스: <input id="stealth" type="number" min="0" max="50" value="0"></label>
+    <label>직감: <input id="intuition" type="number" min="0" max="50" value="0"></label>
+  </fieldset>
 
-<label for="gender">성별</label>
-<select id="gender">
-  <option value="남성">남성</option>
-  <option value="여성">여성</option>
-  <option value="범성">범성</option>
-</select>
+  <fieldset>
+    <legend>성격 (0.00~1.00)</legend>
+    <label>쾌활함: <input id="cheer" type="number" min="0" max="1" step="0.01" value="0"></label>
+    <label>사회성: <input id="social" type="number" min="0" max="1" step="0.01" value="0"></label>
+    <label>논리성향: <input id="logical" type="number" min="0" max="1" step="0.01" value="0"></label>
+    <label>상냥함: <input id="kindness" type="number" min="0" max="1" step="0.01" value="0"></label>
+    <label>욕망: <input id="desire" type="number" min="0" max="1" step="0.01" value="0"></label>
+    <label>용기: <input id="courage" type="number" min="0" max="1" step="0.01" value="0"></label>
+  </fieldset>
 
-<label for="age">나이</label>
-<input id="age" type="number" min="0" placeholder="나이">
+  <fieldset>
+    <legend>사용 가능한 커맨드</legend>
+    <label><input type="checkbox" class="cmd" value="의심한다"> 의심한다</label>
+    <label><input type="checkbox" class="cmd" value="부정한다"> 부정한다</label>
+    <label><input type="checkbox" class="cmd" value="변호한다"> 변호한다</label>
+    <!-- 나머지 커맨드도 같은 방식으로 추가 가능 -->
+  </fieldset>
 
-<fieldset>
-  <legend>스테이터스 (0~50)</legend>
-  <label for="charisma">카리스마</label>
-  <input id="charisma" type="number" min="0" max="50" step="1" value="0">
+  <button id="addChar">캐릭터 추가</button>
+</div>
 
-  <label for="logic">논리력</label>
-  <input id="logic" type="number" min="0" max="50" step="1" value="0">
-
-  <label for="acting">연기력</label>
-  <input id="acting" type="number" min="0" max="50" step="1" value="0">
-
-  <label for="charm">귀염성</label>
-  <input id="charm" type="number" min="0" max="50" step="1" value="0">
-
-  <label for="stealth">스텔스</label>
-  <input id="stealth" type="number" min="0" max="50" step="1" value="0">
-
-  <label for="intuition">직감</label>
-  <input id="intuition" type="number" min="0" max="50" step="1" value="0">
-</fieldset>
-
-<fieldset>
-  <legend>성격 (0~1)</legend>
-  <label for="cheer">쾌활함</label>
-  <input id="cheer" type="number" min="0" max="1" step="0.01" value="0">
-
-  <label for="social">사회성</label>
-  <input id="social" type="number" min="0" max="1" step="0.01" value="0">
-
-  <label for="logical">논리성향</label>
-  <input id="logical" type="number" min="0" max="1" step="0.01" value="0">
-
-  <label for="kindness">상냥함</label>
-  <input id="kindness" type="number" min="0" max="1" step="0.01" value="0">
-
-  <label for="desire">욕망</label>
-  <input id="desire" type="number" min="0" max="1" step="0.01" value="0">
-
-  <label for="courage">용기</label>
-  <input id="courage" type="number" min="0" max="1" step="0.01" value="0">
-</fieldset>
-
-<button id="addChar">캐릭터 추가</button>
-<button id="runBtn" disabled>실행</button>
+<h2>게임 설정</h2>
+<div class="char-section">
+  <fieldset>
+    <legend>추가 역할 설정</legend>
+    <label><input type="checkbox" class="role" value="엔지니어"> 엔지니어</label>
+    <label><input type="checkbox" class="role" value="닥터"> 닥터</label>
+    <label><input type="checkbox" class="role" value="수호천사"> 수호천사</label>
+    <label><input type="checkbox" class="role" value="선내대기인"> 선내대기인</label>
+    <label><input type="checkbox" class="role" value="AC주의자"> AC주의자</label>
+    <label><input type="checkbox" class="role" value="버그"> 버그</label>
+  </fieldset>
+  <label>그노시아 수: <input id="gnosiaCount" type="number" min="1" max="6" value="1" readonly></label>
+</div>
 
 <h2>캐릭터 목록</h2>
 <ul id="charList"></ul>
 
+<h2>관계도 (임시)</h2>
+<div id="relations">[관계도 시각화 영역]</div>
+
+<h2>세이브 / 로드</h2>
+<button id="saveBtn">저장</button>
+<input type="file" id="loadFile">
+<button id="loadBtn">불러오기</button>
+
 <h2>로그</h2>
 <div id="log"></div>
 
-<script type="module" src="./main.js"></script>
+<button id="runBtn">실행</button>
+
+<script type="module">
+  let characters = [];
+
+  const addCharBtn = document.getElementById('addChar');
+  const runBtn = document.getElementById('runBtn');
+  const charList = document.getElementById('charList');
+  const logDiv = document.getElementById('log');
+  const saveBtn = document.getElementById('saveBtn');
+  const loadBtn = document.getElementById('loadBtn');
+
+  function updateCharList() {
+    charList.innerHTML = '';
+    characters.forEach((c, idx) => {
+      const li = document.createElement('li');
+      li.textContent = `${c.name} (${c.age}세, ${c.gender}) - 스테이터스: ${c.charisma},${c.logic},${c.acting},${c.charm},${c.stealth},${c.intuition} / 성격: ${c.cheer},${c.social},${c.logical},${c.kindness},${c.desire},${c.courage}`;
+      li.textContent += ' / 커맨드: ' + c.commands.join(', ');
+      charList.appendChild(li);
+    });
+    runBtn.disabled = characters.length === 0;
+  }
+
+  addCharBtn.addEventListener('click', () => {
+    const name = document.getElementById('name').value;
+    const age = Math.max(0, parseInt(document.getElementById('age').value)||0);
+    const gender = document.getElementById('gender').value;
+
+    const charisma = Math.min(50, Math.max(0, parseInt(document.getElementById('charisma').value)||0));
+    const logic = Math.min(50, Math.max(0, parseInt(document.getElementById('logic').value)||0));
+    const acting = Math.min(50, Math.max(0, parseInt(document.getElementById('acting').value)||0));
+    const charm = Math.min(50, Math.max(0, parseInt(document.getElementById('charm').value)||0));
+    const stealth = Math.min(50, Math.max(0, parseInt(document.getElementById('stealth').value)||0));
+    const intuition = Math.min(50, Math.max(0, parseInt(document.getElementById('intuition').value)||0));
+
+    const cheer = Math.min(1, Math.max(0, parseFloat(document.getElementById('cheer').value)||0));
+    const social = Math.min(1, Math.max(0, parseFloat(document.getElementById('social').value)||0));
+    const logical = Math.min(1, Math.max(0, parseFloat(document.getElementById('logical').value)||0));
+    const kindness = Math.min(1, Math.max(0, parseFloat(document.getElementById('kindness').value)||0));
+    const desire = Math.min(1, Math.max(0, parseFloat(document.getElementById('desire').value)||0));
+    const courage = Math.min(1, Math.max(0, parseFloat(document.getElementById('courage').value)||0));
+
+    const commands = Array.from(document.querySelectorAll('.cmd:checked')).map(cb => cb.value);
+
+    const charObj = { name, age, gender, charisma, logic, acting, charm, stealth, intuition, cheer, social, logical, kindness, desire, courage, commands };
+    characters.push(charObj);
+    updateCharList();
+  });
+
+  runBtn.addEventListener('click', () => {
+    logDiv.innerHTML += '실행 버튼 클릭! (임시 로그)\n';
+    logDiv.scrollTop = logDiv.scrollHeight;
+  });
+
+  // 세이브
+  saveBtn.addEventListener('click', () => {
+    const dataStr = JSON.stringify(characters, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "characters.json";
+    a.click();
+  });
+
+  // 로드
+  loadBtn.addEventListener('click', () => {
+    const fileInput = document.getElementById('loadFile');
+    const file = fileInput.files[0];
+    if (!file) return alert('파일 선택 필요');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      characters = JSON.parse(e.target.result);
+      updateCharList();
+    };
+    reader.readAsText(file);
+  });
+</script>
+
 </body>
 </html>
