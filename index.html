@@ -2,84 +2,59 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>그노시아 시뮬레이터 완전형</title>
+<title>Gnosia Simulator</title>
 <style>
-body { background:#111; color:#eee; font-family:monospace; padding:10px; }
-input, select, button { margin:3px; }
-fieldset { margin-bottom:10px; padding:8px; border:1px solid #444; }
-label { display:block; margin-top:4px; }
-#charList { max-height:300px; overflow-y:auto; border:1px solid #444; padding:5px; background:#000; }
-.char-item { border-bottom:1px solid #333; padding:5px 0; }
-#log { border:1px solid #444; height:300px; overflow-y:auto; padding:5px; background:#000; margin-top:10px; }
-#gameSettings, #commands { margin-bottom:10px; }
+  body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+  fieldset { margin-bottom: 10px; }
+  input, select, button { margin: 2px; }
+  #charList { list-style: none; padding: 0; }
+  #charList li { border: 1px solid #444; margin-bottom: 4px; padding: 4px; }
+  #log { border: 1px solid #444; height: 200px; overflow-y: auto; padding: 5px; background: #000; }
+  label { display: block; margin-top: 4px; }
+  .stat-input { width: 50px; }
 </style>
 </head>
 <body>
 
-<h1>그노시아 시뮬레이터 완전형</h1>
+<h1>그노시아 시뮬레이터</h1>
 
 <h2>캐릭터 생성</h2>
-<label>이름<input id="name" placeholder="이름"></label>
-<label>성별
+<label>이름: <input id="name"></label>
+<label>성별: 
 <select id="gender">
   <option value="남성">남성</option>
   <option value="여성">여성</option>
   <option value="범성">범성</option>
 </select></label>
-<label>나이<input id="age" type="number" min="0"></label>
+<label>나이: <input id="age" type="number" min="0"></label>
 
 <fieldset>
-<legend>스테이터스 (0~50)</legend>
-<label>카리스마<input id="charisma" type="number" min="0" max="50"></label>
-<label>논리력<input id="logic" type="number" min="0" max="50"></label>
-<label>연기력<input id="acting" type="number" min="0" max="50"></label>
-<label>귀염성<input id="charm" type="number" min="0" max="50"></label>
-<label>스텔스<input id="stealth" type="number" min="0" max="50"></label>
-<label>직감<input id="intuition" type="number" min="0" max="50"></label>
+  <legend>스테이터스 (0~50)</legend>
+  <label>카리스마: <input id="charisma" type="number" min="0" max="50" class="stat-input"></label>
+  <label>논리력: <input id="logic" type="number" min="0" max="50" class="stat-input"></label>
+  <label>연기력: <input id="acting" type="number" min="0" max="50" class="stat-input"></label>
+  <label>귀염성: <input id="charm" type="number" min="0" max="50" class="stat-input"></label>
+  <label>스텔스: <input id="stealth" type="number" min="0" max="50" class="stat-input"></label>
+  <label>직감: <input id="intuition" type="number" min="0" max="50" class="stat-input"></label>
 </fieldset>
 
 <fieldset>
-<legend>성격 (0.00~1.00)</legend>
-<label>쾌활함<input id="cheer" type="number" min="0" max="1" step="0.01"></label>
-<label>사회성<input id="social" type="number" min="0" max="1" step="0.01"></label>
-<label>논리성향<input id="logical" type="number" min="0" max="1" step="0.01"></label>
-<label>상냥함<input id="kindness" type="number" min="0" max="1" step="0.01"></label>
-<label>욕망<input id="desire" type="number" min="0" max="1" step="0.01"></label>
-<label>용기<input id="courage" type="number" min="0" max="1" step="0.01"></label>
+  <legend>성격 (0.00~1.00)</legend>
+  <label>쾌활함: <input id="cheer" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
+  <label>사회성: <input id="social" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
+  <label>논리성향: <input id="logical" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
+  <label>상냥함: <input id="kindness" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
+  <label>욕망: <input id="desire" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
+  <label>용기: <input id="courage" type="number" min="0" max="1" step="0.01" class="stat-input"></label>
 </fieldset>
 
-<fieldset id="commands">
-<legend>사용 가능한 커맨드 선택</legend>
-<script>
-const commandList = [
-"의심한다","의심에 동의한다","부정한다","변호한다","변호에 가담한다",
-"감싼다","함께 감싼다","감사한다","반론한다","반론에 가담한다","시끄러워",
-"역할을 밝힌다","자신도 밝힌다","역할을 밝혀라","과장해서 말한다","동의를 구한다",
-"반론을 막는다","얼버무린다","반격한다","도움 요청한다","슬퍼한다","속지마라",
-"투표해라","투표하지 마라","반드시 인간이다","반드시 적이다","전원 배제해라",
-"잡담한다","협력하자","인간이라고 말해","도게자한다"];
-commandList.forEach(cmd=>{
-  document.write(`<label><input type="checkbox" value="${cmd}"> ${cmd}</label>`);
-});
-</script>
-</fieldset>
-
-<h2>게임 설정</h2>
-<fieldset id="gameSettings">
-<label>엔지니어 <input type="checkbox" id="hasEngineer"></label>
-<label>닥터 <input type="checkbox" id="hasDoctor"></label>
-<label>수호천사 <input type="checkbox" id="hasGuardian"></label>
-<label>선내대기인 <input type="checkbox" id="hasCrew"></label>
-<label>AC주의자 <input type="checkbox" id="hasAC"></label>
-<label>버그 <input type="checkbox" id="hasBug"></label>
-<label>그노시아 수 <input id="gnosiaCount" type="number" min="1" max="6" value="1"></label>
+<fieldset>
+  <legend>사용 가능한 커맨드 체크</legend>
+  <div id="commandChecks"></div>
 </fieldset>
 
 <button id="addChar">캐릭터 추가</button>
 <button id="runBtn" disabled>실행</button>
-<button id="saveBtn">세이브</button>
-<input type="file" id="loadFile">
-<button id="loadBtn">로드</button>
 
 <h2>캐릭터 목록</h2>
 <ul id="charList"></ul>
@@ -87,179 +62,116 @@ commandList.forEach(cmd=>{
 <h2>로그</h2>
 <div id="log"></div>
 
-<script type="module">
-const charListEl = document.getElementById('charList');
-const logEl = document.getElementById('log');
-const runBtn = document.getElementById('runBtn');
+<h2>세이브 / 로드</h2>
+<button id="saveBtn">세이브</button>
+<input type="file" id="loadFile">
+<button id="loadBtn">로드</button>
+
+<script>
+const commands = [
+  "의심한다", "의심에 동의한다", "부정한다", "변호한다", "변호에 가담한다", 
+  "감싼다", "함께 감싼다", "감사한다", "반론한다", "반론에 가담한다", 
+  "시끄러워", "역할을 밝힌다", "자신도 밝힌다", "역할을 밝혀라", "과장해서 말한다", 
+  "동의를 구한다", "반론을 막는다", "얼버무린다", "반격한다", "도움 요청한다", 
+  "슬퍼한다", "속지마라", "투표해라", "투표하지 마라", "반드시 인간이다", 
+  "반드시 적이다", "전원 배제해라", "잡담한다", "협력하자", "인간이라고 말해", "도게자한다"
+];
+
 let characters = [];
-let round = 0;
 
-function log(message){
-  const p = document.createElement('p');
-  p.textContent = message;
-  logEl.appendChild(p);
-  logEl.scrollTop = logEl.scrollHeight;
-}
+const addCharBtn = document.getElementById("addChar");
+const runBtn = document.getElementById("runBtn");
+const charList = document.getElementById("charList");
+const logDiv = document.getElementById("log");
+const commandChecksDiv = document.getElementById("commandChecks");
 
-function addCharacter(){
-  const name = document.getElementById('name').value;
-  const gender = document.getElementById('gender').value;
-  const age = Math.max(0, Number(document.getElementById('age').value));
-  const status = {};
-  ["charisma","logic","acting","charm","stealth","intuition"].forEach(id=>{
-    status[id] = Math.min(50, Math.max(0, Number(document.getElementById(id).value)));
-  });
-  const personality = {};
-  ["cheer","social","logical","kindness","desire","courage"].forEach(id=>{
-    personality[id] = Math.min(1, Math.max(0, Number(document.getElementById(id).value)));
-  });
-  const commands = [];
-  document.querySelectorAll('#commands input[type="checkbox"]').forEach(chk=>{
-    if(chk.checked) commands.push(chk.value);
-  });
-  characters.push({name, gender, age, status, personality, commands, trust:50, affinity:50, aggro:0});
-  renderCharacterList();
-  runBtn.disabled = characters.length === 0;
-}
-
-function renderCharacterList(){
-  charListEl.innerHTML = '';
-  characters.forEach(c=>{
-    const li = document.createElement('li');
-    li.classList.add('char-item');
-    li.innerHTML = `<b>${c.name}</b> | ${c.gender} | 나이:${c.age}<br>Status: ${Object.entries(c.status).map(([k,v])=>`${k}:${v}`).join(', ')}<br>Personality: ${Object.entries(c.personality).map(([k,v])=>`${k}:${v.toFixed(2)}`).join(', ')}<br>Commands: ${c.commands.join(', ')}<br>Trust:${c.trust}, Affinity:${c.affinity}, Aggro:${c.aggro}`;
-    charListEl.appendChild(li);
+function refreshCommandChecks() {
+  commandChecksDiv.innerHTML = "";
+  commands.forEach(cmd => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.command = cmd;
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(cmd));
+    commandChecksDiv.appendChild(label);
   });
 }
 
-// 커맨드 조건과 효과 계산
-function applyCommandEffect(character, command){
-  const s = character.status;
-  const p = character.personality;
-  switch(command){
-    case "의심한다":
-      character.aggro += 5;
-      character.affinity -= 2;
-      break;
-    case "의심에 동의한다":
-      character.aggro += 3;
-      character.affinity -= 1;
-      break;
-    case "부정한다":
-      character.trust += 4;
-      character.affinity += 2;
-      break;
-    case "변호한다":
-      character.affinity +=3;
-      character.trust +=2;
-      break;
-    case "감싼다":
-    case "함께 감싼다":
-      character.affinity +=2;
-      break;
-    case "반격한다":
-      if(s.logic>=25 && s.acting>=25){
-        character.trust -=2;
-        character.aggro +=3;
-      }
-      break;
-    case "도움 요청한다":
-      if(s.acting>=30){
-        character.affinity +=2;
-      }
-      break;
-    case "슬퍼한다":
-      if(s.charm>=25){
-        character.affinity +=3;
-      }
-      break;
-    case "속지마라":
-      if(s.intuition>=30){
-        character.aggro -=2;
-      }
-      break;
-    case "투표해라":
-      if(s.logic>=10) character.aggro +=1;
-      break;
-    case "투표하지 마라":
-      if(s.logic>=15) character.aggro -=1;
-      break;
-    case "반드시 인간이다":
-    case "반드시 적이다":
-      if(s.logic>=20) character.trust +=3;
-      break;
-    case "전원 배제해라":
-      if(s.logic>=30) character.aggro +=5;
-      break;
-    case "잡담한다":
-      if(s.stealth>=10) character.affinity +=2;
-      break;
-    case "협력하자":
-      if(p.desire>=0.15) character.affinity = 50;
-      break;
-    case "인간이라고 말해":
-      if(s.intuition>=20) character.trust +=2;
-      break;
-    case "도게자한다":
-      if(s.stealth>=35) character.aggro -=3;
-      break;
-    default:
-      break;
-  }
-}
-
-function processTurn(){
-  round++;
-  log(`--- 라운드 ${round} 시작 ---`);
-  
-  characters.forEach(c=>{
-    if(c.commands.length>0){
-      const cmd = c.commands[Math.floor(Math.random()*c.commands.length)];
-      applyCommandEffect(c, cmd);
-      log(`${c.name}가 "${cmd}" 커맨드를 사용했습니다.`);
-    } else {
-      log(`${c.name}는 행동하지 않았습니다.`);
-    }
+function refreshCharList() {
+  charList.innerHTML = "";
+  characters.forEach((c, idx) => {
+    const li = document.createElement("li");
+    li.textContent = `${c.name} (${c.gender}, ${c.age}세)`;
+    const cmds = document.createElement("div");
+    cmds.textContent = "선택 커맨드: " + c.commands.join(", ");
+    li.appendChild(cmds);
+    charList.appendChild(li);
   });
-
-  if(round % 2 === 0){
-    const gnosiaNum = Number(document.getElementById('gnosiaCount').value);
-    for(let i=0;i<gnosiaNum;i++){
-      const target = characters[Math.floor(Math.random()*characters.length)];
-      log(`그노시아가 ${target.name}을 습격했습니다!`);
-    }
-  }
-
-  renderCharacterList();
-  log(`--- 라운드 ${round} 종료 ---`);
+  runBtn.disabled = characters.length < 5;
 }
 
-function saveCharacters(){
-  const dataStr = JSON.stringify(characters,null,2);
-  const blob = new Blob([dataStr], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download="gnosia_characters.json"; a.click();
-  URL.revokeObjectURL(url);
+addCharBtn.addEventListener("click", () => {
+  const c = {
+    name: document.getElementById("name").value || "이름 없음",
+    gender: document.getElementById("gender").value,
+    age: Math.max(0, parseInt(document.getElementById("age").value) || 0),
+    charisma: Math.min(50, Math.max(0, parseInt(document.getElementById("charisma").value)||0)),
+    logic: Math.min(50, Math.max(0, parseInt(document.getElementById("logic").value)||0)),
+    acting: Math.min(50, Math.max(0, parseInt(document.getElementById("acting").value)||0)),
+    charm: Math.min(50, Math.max(0, parseInt(document.getElementById("charm").value)||0)),
+    stealth: Math.min(50, Math.max(0, parseInt(document.getElementById("stealth").value)||0)),
+    intuition: Math.min(50, Math.max(0, parseInt(document.getElementById("intuition").value)||0)),
+    cheer: Math.min(1, Math.max(0, parseFloat(document.getElementById("cheer").value)||0)),
+    social: Math.min(1, Math.max(0, parseFloat(document.getElementById("social").value)||0)),
+    logical: Math.min(1, Math.max(0, parseFloat(document.getElementById("logical").value)||0)),
+    kindness: Math.min(1, Math.max(0, parseFloat(document.getElementById("kindness").value)||0)),
+    desire: Math.min(1, Math.max(0, parseFloat(document.getElementById("desire").value)||0)),
+    courage: Math.min(1, Math.max(0, parseFloat(document.getElementById("courage").value)||0)),
+    commands: Array.from(document.querySelectorAll("#commandChecks input:checked")).map(cb => cb.dataset.command)
+  };
+  characters.push(c);
+  refreshCharList();
+  log("캐릭터 추가됨: " + c.name);
+});
+
+runBtn.addEventListener("click", () => {
+  log("게임 실행! 현재 캐릭터 수: " + characters.length);
+  // 여기에 실제 시뮬레이션 로직을 추가 가능
+});
+
+function log(msg) {
+  const p = document.createElement("p");
+  p.textContent = msg;
+  logDiv.appendChild(p);
+  logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-function loadCharacters(){
-  const fileInput = document.getElementById('loadFile');
-  if(fileInput.files.length===0) return;
+// 초기 커맨드 체크 UI 생성
+refreshCommandChecks();
+
+// 세이브/로드
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const data = JSON.stringify(characters);
+  const blob = new Blob([data], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "characters.json";
+  a.click();
+});
+
+document.getElementById("loadBtn").addEventListener("click", () => {
+  const fileInput = document.getElementById("loadFile");
+  if (!fileInput.files[0]) { alert("파일 선택 필요"); return; }
   const reader = new FileReader();
-  reader.onload = (e)=>{
+  reader.onload = e => {
     characters = JSON.parse(e.target.result);
-    renderCharacterList();
-    runBtn.disabled = characters.length===0;
+    refreshCharList();
+    log("캐릭터 로드 완료");
   };
   reader.readAsText(fileInput.files[0]);
-}
-
-document.getElementById('addChar').addEventListener('click', addCharacter);
-runBtn.addEventListener('click', processTurn);
-document.getElementById('saveBtn').addEventListener('click', saveCharacters);
-document.getElementById('loadBtn').addEventListener('click', loadCharacters);
-
+});
 </script>
+
 </body>
 </html>
