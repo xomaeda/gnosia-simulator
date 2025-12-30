@@ -1,84 +1,58 @@
-// ==============================
-// 전역 데이터
-// ==============================
-
+/***********************
+ * 기본 데이터
+ ***********************/
 const characters = [];
-const MIN_CHARACTERS = 5;
-
-let phase = "setup";   // setup | day | vote | night
-let dayCount = 1;
+let phase = "day";
 let turnCount = 0;
-const MAX_TURNS = 5;
 
-let nightStep = 0;
+/***********************
+ * 토론 상태
+ ***********************/
+let discussionState = {
+  type: null,          // "의심" | "변호" | null
+  target: null,
+  supporters: [],
+  attackers: []
+};
 
-// ==============================
-// DOM
-// ==============================
-
-const addCharBtn = document.getElementById("addChar");
-const runBtn = document.getElementById("runBtn");
-const charList = document.getElementById("charList");
+/***********************
+ * 로그
+ ***********************/
 const logBox = document.getElementById("log");
-
-// ==============================
-// 유틸
-// ==============================
-
-function log(text) {
-  logBox.innerText += text + "\n";
+function addLog(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  logBox.appendChild(div);
   logBox.scrollTop = logBox.scrollHeight;
 }
 
-function getValue(id) {
-  return Number(document.getElementById(id).value) || 0;
-}
-
-function aliveChars() {
-  return characters.filter(c => c.alive);
-}
-
-function randomFrom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// ==============================
-// 캐릭터 생성
-// ==============================
-
-addCharBtn.addEventListener("click", () => {
-  const name = document.getElementById("name").value.trim();
-  if (!name) return alert("이름을 입력하세요");
-
+/***********************
+ * 캐릭터 생성
+ ***********************/
+document.getElementById("addChar").onclick = () => {
   const c = {
-    name,
-    gender: document.getElementById("gender").value,
-    age: getValue("age"),
-
+    name: name.value,
+    gender: gender.value,
+    age: Number(age.value),
     status: {
-      charisma: getValue("charisma"),
-      logic: getValue("logic"),
-      acting: getValue("acting"),
-      charm: getValue("charm"),
-      stealth: getValue("stealth"),
-      intuition: getValue("intuition")
+      charisma: Number(charisma.value),
+      logic: Number(logic.value),
+      acting: Number(acting.value),
+      charm: Number(charm.value),
+      stealth: Number(stealth.value),
+      intuition: Number(intuition.value)
     },
-
     personality: {
-      cheer: getValue("cheer"),
-      social: getValue("social"),
-      logical: getValue("logical"),
-      kindness: getValue("kindness"),
-      desire: getValue("desire"),
-      courage: getValue("courage")
+      cheer: Number(cheer.value),
+      social: Number(social.value),
+      logical: Number(logical.value),
+      kindness: Number(kindness.value),
+      desire: Number(desire.value),
+      courage: Number(courage.value)
     },
-
     trust: {},
     favor: {},
-    suspicion: 0,
-    aggro: 0,
-    alive: true,
-    role: null
+    aggro: 0
   };
 
   characters.forEach(o => {
@@ -89,209 +63,133 @@ addCharBtn.addEventListener("click", () => {
   });
 
   characters.push(c);
-  updateCharacterList();
-  log(`캐릭터 추가: ${c.name}`);
+  updateCharList();
 
-  if (characters.length >= MIN_CHARACTERS) {
+  if (characters.length >= 5) {
     runBtn.disabled = false;
   }
-});
+};
 
-// ==============================
-// 목록
-// ==============================
-
-function updateCharacterList() {
+/***********************
+ * 캐릭터 목록
+ ***********************/
+function updateCharList() {
   charList.innerHTML = "";
-  characters.forEach((c, i) => {
+  characters.forEach(c => {
     const li = document.createElement("li");
-    li.textContent = `${i + 1}. ${c.name} ${c.alive ? "" : "(사망)"}`;
+    li.textContent = c.name;
     charList.appendChild(li);
   });
 }
 
-// ==============================
-// 실행 버튼
-// ==============================
+/***********************
+ * 커맨드 정의
+ ***********************/
+const COMMANDS = {
 
-window.runSimulation = function () {
+  "의심한다": {
+    canUse: () => discussionState.type === null,
+    effect: (user, target) => {
+      discussionState = {
+        type: "의심",
+        target,
+        supporters: [],
+        attackers: [user]
+      };
+      user.aggro += 2;
+      addLog(`${user.name}: ${target.name}는 수상해.`);
+    }
+  },
 
-  if (phase === "setup") {
-    phase = "day";
-    turnCount = 0;
-    log(`\n=== ${dayCount}일차 낮 시작 ===`);
-    return;
-  }
+  "의심에 동의한다": {
+    canUse: () => discussionState.type === "의심",
+    effect: (user) => {
+      discussionState.attackers.push(user);
+      user.aggro += 1;
+      addLog(`${user.name}: 나도 의심돼.`);
+    }
+  },
 
-  if (phase === "day") {
-    runDayTurn();
-    return;
-  }
+  "부정한다": {
+    canUse: (user) => discussionState.type === "의심" && discussionState.target === user,
+    effect: (user) => {
+      discussionState = { type: null, target: null, supporters: [], attackers: [] };
+      user.aggro -= 1;
+      addLog(`${user.name}: 그건 오해야.`);
+    }
+  },
 
-  if (phase === "vote") {
-    runVote();
-    return;
-  }
+  /* ===== 변호 계열 ===== */
 
-  if (phase === "night") {
-    runNight();
-    return;
+  "변호한다": {
+    canUse: () => discussionState.type === "의심",
+    effect: (user) => {
+      discussionState.type = "변호";
+      discussionState.supporters.push(user);
+      user.aggro += 2;
+      addLog(`${user.name}: ${discussionState.target.name}는 아니야.`);
+    }
+  },
+
+  "변호에 가담한다": {
+    canUse: () => discussionState.type === "변호",
+    effect: (user) => {
+      discussionState.supporters.push(user);
+      user.aggro += 1;
+      addLog(`${user.name}: 나도 그렇게 생각해.`);
+    }
+  },
+
+  "반론한다": {
+    canUse: () => discussionState.type === "변호",
+    effect: (user) => {
+      discussionState.type = "의심";
+      discussionState.attackers.push(user);
+      user.aggro += 2;
+      addLog(`${user.name}: 그래도 수상한 건 사실이야.`);
+    }
   }
 };
 
-// ==============================
-// 낮 턴
-// ==============================
+/***********************
+ * 커맨드 실행
+ ***********************/
+function executeCommand(user, command, target = null) {
+  if (!COMMANDS[command]) return;
+  if (!COMMANDS[command].canUse(user)) return;
+  COMMANDS[command].effect(user, target);
+}
 
-function runDayTurn() {
+/***********************
+ * 턴 진행
+ ***********************/
+function runTurn() {
+  addLog(`--- 낮 / 턴 ${turnCount + 1} ---`);
   turnCount++;
-  log(`\n[낮 ${dayCount}일차 - ${turnCount}턴]`);
 
-  const speaker = randomFrom(aliveChars());
-  const command = chooseCommand(speaker);
+  const user = characters[Math.floor(Math.random() * characters.length)];
+  const others = characters.filter(c => c !== user);
+  const target = others[Math.floor(Math.random() * others.length)];
 
-  executeCommand(speaker, command);
-
-  if (turnCount >= MAX_TURNS) {
-    phase = "vote";
-    log(`\n=== 투표 시간 ===`);
-  }
-}
-
-// ==============================
-// 커맨드 (임시)
-// ==============================
-
-function chooseCommand(speaker) {
-  const cmds = ["의심", "감싸기"];
-
-  if (speaker.personality.logical > 25) cmds.push("논리정리");
-  if (speaker.personality.cheer > 25) cmds.push("분위기메이커");
-
-  return randomFrom(cmds);
-}
-
-function executeCommand(speaker, command) {
-  const targets = aliveChars().filter(c => c !== speaker);
-  if (targets.length === 0) return;
-  const target = randomFrom(targets);
-
-  switch (command) {
-    case "의심":
-      log(`${speaker.name} → ${target.name} 를 의심했다.`);
-      target.suspicion += 2;
-      speaker.aggro += 2;
-      break;
-
-    case "감싸기":
-      log(`${speaker.name} → ${target.name} 를 감쌌다.`);
-      speaker.favor[target.name] += 2;
-      speaker.aggro += 1;
-      break;
-
-    case "논리정리":
-      log(`${speaker.name} 가 논리적인 발언을 했다.`);
-      speaker.aggro += 1;
-      break;
-
-    case "분위기메이커":
-      log(`${speaker.name} 가 분위기를 누그러뜨렸다.`);
-      speaker.aggro = Math.max(0, speaker.aggro - 1);
-      break;
-  }
-}
-
-// ==============================
-// 🗳 투표 시스템
-// ==============================
-
-function runVote() {
-  const votes = {};
-
-  aliveChars().forEach(voter => {
-    const targets = aliveChars().filter(c => c !== voter);
-
-    let bestScore = -Infinity;
-    let chosen = null;
-
-    targets.forEach(t => {
-      let score = 0;
-      score += t.suspicion * 2;
-      score += t.aggro;
-      score -= voter.favor[t.name] || 0;
-      score -= voter.trust[t.name] || 0;
-      score += Math.random() * 3; // 랜덤성
-
-      if (score > bestScore) {
-        bestScore = score;
-        chosen = t;
-      }
-    });
-
-    if (chosen) {
-      votes[chosen.name] = (votes[chosen.name] || 0) + 1;
-      log(`${voter.name} → ${chosen.name} 에 투표`);
-    }
-  });
-
-  let max = 0;
-  let candidates = [];
-
-  for (const name in votes) {
-    if (votes[name] > max) {
-      max = votes[name];
-      candidates = [name];
-    } else if (votes[name] === max) {
-      candidates.push(name);
-    }
+  if (!discussionState.type) {
+    executeCommand(user, "의심한다", target);
+  } else if (discussionState.type === "의심") {
+    Math.random() < 0.4
+      ? executeCommand(user, "의심에 동의한다")
+      : executeCommand(user, "변호한다");
+  } else if (discussionState.type === "변호") {
+    Math.random() < 0.5
+      ? executeCommand(user, "변호에 가담한다")
+      : executeCommand(user, "반론한다");
   }
 
-  const eliminatedName = randomFrom(candidates);
-  const eliminated = characters.find(c => c.name === eliminatedName);
-  eliminated.alive = false;
-
-  log(`\n🧊 ${eliminated.name} 가 콜드슬립 되었다.`);
-
-  updateCharacterList();
-
-  phase = "night";
-  nightStep = 0;
-  log(`\n=== 밤이 되었습니다 ===`);
-}
-
-// ==============================
-// 🌙 밤 시스템
-// ==============================
-
-function runNight() {
-
-  if (nightStep === 0) {
-    log(`\n[밤 ${dayCount}일차 – 자유행동]`);
-    aliveChars().forEach(c => {
-      log(`${c.name} 는 조용히 밤을 보냈다.`);
-    });
-    nightStep = 1;
-    log(`\n(버튼을 다시 누르면 밤이 끝납니다)`);
-    return;
-  }
-
-  if (nightStep === 1) {
-    log(`\n[밤 ${dayCount}일차 – 습격 발생]`);
-
-    const victims = aliveChars();
-    if (victims.length > 0) {
-      const victim = randomFrom(victims);
-      victim.alive = false;
-      log(`${victim.name} 가 밤 사이에 사망했다.`);
-    }
-
-    updateCharacterList();
-
-    dayCount++;
-    phase = "day";
+  if (turnCount >= 5) {
+    addLog("=== 낮 종료 ===");
     turnCount = 0;
-    nightStep = 0;
-
-    log(`\n=== ${dayCount}일차 낮 시작 ===`);
   }
 }
+
+/***********************
+ * 버튼 연결
+ ***********************/
+runBtn.onclick = runTurn;
