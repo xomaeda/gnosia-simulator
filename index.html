@@ -2,570 +2,222 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gnosia Simulator</title>
+  <title>그노시아 시뮬레이터</title>
+
+  <!-- Cafe24 고운밤 웹폰트 -->
   <style>
-    :root{
-      --bg:#0f1115;
-      --panel:#151a22;
-      --panel2:#121620;
-      --line:#2a3342;
-      --txt:#e7eaf0;
-      --muted:#a8b0c0;
-      --accent:#7aa2ff;
-      --bad:#ff6b6b;
-      --good:#67e8a0;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --r:14px;
-      --pad:12px;
-      --gap:12px;
-      font-synthesis-weight: none;
+    @font-face {
+      font-family: 'Cafe24Gounnight';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Gounnight.woff')
+           format('woff');
+      font-weight: normal;
+      font-style: normal;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(122,162,255,.12), transparent 60%) , var(--bg);
-      color:var(--txt);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    * {
+      box-sizing: border-box;
     }
-    h1,h2,h3{margin:0}
-    a{color:var(--accent)}
-    .app{
-      max-width: 1320px;
-      margin: 0 auto;
+
+    body {
+      background: #0e0e12;
+      color: #e6e6eb;
+      font-family: 'Cafe24Gounnight', monospace;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+      margin: 0;
       padding: 16px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 14px;
-      min-height: 100vh;
     }
 
-    /* Top bar */
-    .topbar{
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
+    h1, h2, h3 {
+      margin: 6px 0 10px;
+      font-weight: normal;
     }
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
+
+    h1 {
+      font-size: 26px;
     }
-    .subtitle{
-      color:var(--muted);
-      font-size: 12px;
+
+    h2 {
+      font-size: 20px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
     }
-    .top-actions{
-      display:flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items:center;
-      justify-content:flex-end;
-    }
-    button, input, select{
-      background: var(--panel2);
-      color: var(--txt);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 8px 10px;
+
+    button {
       font-family: inherit;
-      font-size: 13px;
-      outline: none;
-    }
-    button{
-      cursor:pointer;
-      transition: transform .05s ease, border-color .15s ease;
-    }
-    button:hover{border-color: rgba(122,162,255,.65)}
-    button:active{transform: translateY(1px)}
-    button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-      border-color: var(--line);
-    }
-    .btn-primary{
-      background: rgba(122,162,255,.16);
-      border-color: rgba(122,162,255,.45);
-    }
-    .btn-danger{
-      background: rgba(255,107,107,.12);
-      border-color: rgba(255,107,107,.35);
+      background: #1f2330;
+      color: #fff;
+      border: 1px solid #444;
+      padding: 6px 12px;
+      cursor: pointer;
     }
 
-    /* Main grid: left(center) + right(log) */
-    .main{
-      display:grid;
-      grid-template-columns: 1.05fr 0.95fr;
-      gap: var(--gap);
-      align-items: start;
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
-    .card{
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 32%), var(--panel);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      overflow:hidden;
+    input, select {
+      font-family: inherit;
+      background: #151823;
+      color: #e6e6eb;
+      border: 1px solid #333;
+      padding: 4px 6px;
     }
-    .card-head{
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
     }
-    .card-head .meta{
-      color: var(--muted);
+
+    .panel {
+      border: 1px solid #333;
+      padding: 10px;
+      background: #11131a;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .row label {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .row input {
+      width: 100%;
+    }
+
+    .command-box {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      padding: 6px;
+      background: #0c0e14;
+    }
+
+    .command-check {
       font-size: 12px;
       white-space: nowrap;
     }
-    .card-body{
-      padding: 12px;
+
+    ul {
+      padding-left: 18px;
+      margin: 6px 0;
     }
 
-    /* Left side: two cards stacked (roster/settings, relation) */
-    .left{
-      display:grid;
-      grid-template-rows: auto auto;
-      gap: var(--gap);
-    }
-
-    /* Roster area layout: form + list */
-    .roster-grid{
-      display:grid;
-      grid-template-columns: 1fr 0.7fr;
-      gap: var(--gap);
-      align-items: start;
-    }
-
-    /* Form grid */
-    form{
-      margin:0;
-      display:flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .grid-3{
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .grid-2{
-      display:grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .field{
-      display:flex;
-      flex-direction: column;
-      gap: 6px;
-      min-width: 0;
-    }
-    label{
-      font-size: 12px;
-      color: var(--muted);
-      user-select: none;
-    }
-    input[type="number"]{
-      width: 100%;
-    }
-    .hint{
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: -4px;
-    }
-
-    /* details for compact sections */
-    details{
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(0,0,0,.12);
-      overflow: hidden;
-    }
-    summary{
-      list-style: none;
-      cursor: pointer;
-      padding: 10px 10px;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      user-select:none;
-    }
-    summary::-webkit-details-marker{display:none}
-    .summary-title{
-      display:flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .summary-title b{font-size: 13px}
-    .summary-title span{font-size: 11px; color: var(--muted)}
-    .details-body{
-      padding: 10px;
-      border-top:1px solid var(--line);
-    }
-
-    /* Commands checklist: compact + scroll */
-    #command-box{
-      display:grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      max-height: 180px;
-      overflow: auto;
-      padding-right: 6px;
-    }
-    .command-check{
-      display:flex;
-      align-items:center;
-      gap: 8px;
-      padding: 6px 8px;
-      border: 1px solid rgba(255,255,255,.06);
-      border-radius: 10px;
-      background: rgba(0,0,0,.10);
-    }
-    .command-check span{
-      font-size: 12px;
-      color: var(--txt);
-      line-height: 1.2;
-    }
-
-    /* Character list */
-    #char-list{
-      margin:0;
-      padding:0;
-      list-style:none;
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 520px;
-      overflow: auto;
-      padding-right: 6px;
-    }
-    #char-list li{
-      padding: 8px 10px;
-      border: 1px solid rgba(255,255,255,.06);
-      border-radius: 12px;
-      background: rgba(0,0,0,.10);
-      font-size: 13px;
-      color: var(--txt);
-    }
-
-    /* Settings compact */
-    .settings-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      align-items: start;
-    }
-    .role-box{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .chk{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding: 7px 8px;
-      border:1px solid rgba(255,255,255,.06);
-      border-radius: 10px;
-      background: rgba(0,0,0,.10);
-      font-size: 12px;
-      color: var(--txt);
-    }
-    .row{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      flex-wrap: wrap;
-    }
-
-    /* Right side: log fixed height */
-    #log{
-      border: 1px solid var(--line);
-      background: #070a10;
-      border-radius: 12px;
-      height: 560px;
+    #log {
+      height: 260px;
       overflow-y: auto;
-      padding: 10px;
-      white-space: pre-wrap;
-      font-size: 12.5px;
-      line-height: 1.45;
-    }
-    .log-actions{
-      display:flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items:center;
-      justify-content:flex-end;
+      border: 1px solid #333;
+      padding: 6px;
+      background: #05060a;
+      font-size: 13px;
     }
 
-    /* Relation canvas */
-    #relation-canvas{
-      width: 100%;
-      height: 360px;
-      background: #070a10;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      display:block;
-    }
-
-    /* Responsive */
-    @media (max-width: 980px){
-      .main{grid-template-columns: 1fr}
-      .roster-grid{grid-template-columns: 1fr}
-      #log{height: 420px}
-      #relation-canvas{height: 320px}
-      #command-box{grid-template-columns: 1fr}
-      .role-box{grid-template-columns: 1fr}
+    .footer-btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
     }
   </style>
 </head>
 
 <body>
-  <div class="app">
-    <div class="topbar">
-      <div class="title">
-        <h1>그노시아 시뮬레이터</h1>
-        <div class="subtitle">명단 관리 · 게임 설정 · 실행/로그 · 관계도 (UI 리디자인)</div>
-      </div>
 
-      <div class="top-actions">
-        <button id="run-btn" class="btn-primary" disabled>실행</button>
-        <button id="save-log">로그 저장</button>
-        <button id="save-roster">명단 저장</button>
+<h1>그노시아 시뮬레이터</h1>
 
-        <label class="btn-danger" style="display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px;">
-          명단 불러오기
-          <input id="load-roster" type="file" accept="application/json" style="display:none;">
-        </label>
-      </div>
-    </div>
+<div class="layout">
 
-    <div class="main">
-      <!-- LEFT -->
-      <div class="left">
-        <!-- Roster + Settings -->
-        <div class="card">
-          <div class="card-head">
-            <h2 style="font-size:15px;">명단 관리 & 게임 설정</h2>
-            <div class="meta">스크롤 최소화 레이아웃</div>
-          </div>
+  <!-- 왼쪽: 캐릭터 / 설정 -->
+  <div class="panel">
 
-          <div class="card-body">
-            <div class="roster-grid">
-              <!-- Form -->
-              <div>
-                <form id="char-form">
-                  <div class="grid-3">
-                    <div class="field">
-                      <label for="name">이름</label>
-                      <input id="name" placeholder="이름" required />
-                    </div>
+    <h2>캐릭터 생성</h2>
 
-                    <div class="field">
-                      <label for="gender">성별</label>
-                      <select id="gender">
-                        <option value="남성">남성</option>
-                        <option value="여성">여성</option>
-                        <option value="범성">범성</option>
-                      </select>
-                    </div>
+    <form id="char-form">
 
-                    <div class="field">
-                      <label for="age">나이 (0 이상)</label>
-                      <input id="age" type="number" min="0" step="1" placeholder="나이" required />
-                    </div>
-                  </div>
-
-                  <details open>
-                    <summary>
-                      <div class="summary-title">
-                        <b>스테이터스</b>
-                        <span>0~50 (소수 1자리 가능)</span>
-                      </div>
-                      <span style="color:var(--muted); font-size:12px;">펼치기/접기</span>
-                    </summary>
-                    <div class="details-body">
-                      <div class="grid-3">
-                        <div class="field">
-                          <label for="charisma">카리스마</label>
-                          <input id="charisma" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                        <div class="field">
-                          <label for="logic">논리력</label>
-                          <input id="logic" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                        <div class="field">
-                          <label for="acting">연기력</label>
-                          <input id="acting" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                        <div class="field">
-                          <label for="charm">귀염성</label>
-                          <input id="charm" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                        <div class="field">
-                          <label for="stealth">스텔스</label>
-                          <input id="stealth" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                        <div class="field">
-                          <label for="intuition">직감</label>
-                          <input id="intuition" type="number" min="0" max="50" step="0.1" placeholder="0~50" required />
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details>
-                    <summary>
-                      <div class="summary-title">
-                        <b>성격</b>
-                        <span>0.00~1.00 (소수 2자리 권장)</span>
-                      </div>
-                      <span style="color:var(--muted); font-size:12px;">펼치기/접기</span>
-                    </summary>
-                    <div class="details-body">
-                      <div class="grid-3">
-                        <div class="field">
-                          <label for="cheer">쾌활함</label>
-                          <input id="cheer" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                        <div class="field">
-                          <label for="social">사회성</label>
-                          <input id="social" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                        <div class="field">
-                          <label for="logical">논리성향</label>
-                          <input id="logical" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                        <div class="field">
-                          <label for="kindness">상냥함</label>
-                          <input id="kindness" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                        <div class="field">
-                          <label for="desire">욕망</label>
-                          <input id="desire" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                        <div class="field">
-                          <label for="courage">용기</label>
-                          <input id="courage" type="number" min="0" max="1" step="0.01" placeholder="0.00~1.00" required />
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details>
-                    <summary>
-                      <div class="summary-title">
-                        <b>사용 가능 커맨드 체크</b>
-                        <span>유저가 판단해서 체크 (실행 시 스탯조건도 다시 검사됨)</span>
-                      </div>
-                      <span style="color:var(--muted); font-size:12px;">펼치기/접기</span>
-                    </summary>
-                    <div class="details-body">
-                      <div id="command-box"></div>
-                      <div class="hint">※ 여기서 체크한 커맨드만 그 캐릭터가 사용하려고 시도합니다.</div>
-                    </div>
-                  </details>
-
-                  <div class="row">
-                    <button type="submit" class="btn-primary">캐릭터 추가</button>
-                    <span class="hint">※ 캐릭터 5명 이상이면 실행 버튼이 활성화됩니다.</span>
-                  </div>
-                </form>
-
-                <div style="height:10px"></div>
-
-                <div class="card" style="box-shadow:none;">
-                  <div class="card-head">
-                    <h3 style="font-size:14px;">게임 설정</h3>
-                    <div class="meta">역할 on/off · 그노시아 수</div>
-                  </div>
-                  <div class="card-body">
-                    <div class="settings-grid">
-                      <div>
-                        <div class="hint" style="margin:0 0 8px 0;">선원/그노시아는 항상 포함됩니다.</div>
-                        <div class="role-box">
-                          <label class="chk"><input id="role-engineer" type="checkbox" checked> 엔지니어</label>
-                          <label class="chk"><input id="role-doctor" type="checkbox" checked> 닥터</label>
-                          <label class="chk"><input id="role-guardian" type="checkbox" checked> 수호천사</label>
-                          <label class="chk"><input id="role-standby" type="checkbox" checked> 선내대기인(2명)</label>
-                          <label class="chk"><input id="role-ac" type="checkbox"> AC주의자</label>
-                          <label class="chk"><input id="role-bug" type="checkbox"> 버그</label>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div class="field">
-                          <label for="gnosia-count">그노시아 수</label>
-                          <input id="gnosia-count" type="number" min="1" step="1" value="1">
-                          <div class="hint">
-                            인원 수에 따라 최대치가 제한됩니다. (게임 시작 시 자동 보정)
-                          </div>
-                        </div>
-                        <div class="hint">
-                          ※ 정확한 최대치 규칙은 내부 로직(computeMaxGnosiaCount)에서 강제됩니다.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- List -->
-              <div class="card" style="box-shadow:none;">
-                <div class="card-head">
-                  <h3 style="font-size:14px;">캐릭터 목록</h3>
-                  <div class="meta">현재 명단</div>
-                </div>
-                <div class="card-body">
-                  <ul id="char-list"></ul>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div class="row">
+        <div>
+          <label>이름</label>
+          <input id="name" required />
         </div>
-
-        <!-- Relation -->
-        <div class="card">
-          <div class="card-head">
-            <h2 style="font-size:15px;">관계도</h2>
-            <div class="meta">우호도/신뢰도 시각화</div>
-          </div>
-          <div class="card-body">
-            <canvas id="relation-canvas" width="900" height="360"></canvas>
-            <div class="hint" style="margin-top:8px;">
-              ※ 게임 진행/발언/자유행동에 따라 우호도·신뢰도가 변하며, 여기서 전체 관계를 확인합니다.
-            </div>
-          </div>
+        <div>
+          <label>성별</label>
+          <select id="gender">
+            <option value="남성">남성</option>
+            <option value="여성">여성</option>
+            <option value="범성">범성</option>
+          </select>
+        </div>
+        <div>
+          <label>나이</label>
+          <input id="age" type="number" min="0" />
         </div>
       </div>
 
-      <!-- RIGHT -->
-      <div class="card">
-        <div class="card-head">
-          <h2 style="font-size:15px;">실행 및 로그</h2>
-          <div class="meta">낮: 5번 / 밤: 2번</div>
-        </div>
-        <div class="card-body">
-          <div id="log"></div>
-          <div class="hint" style="margin-top:10px;">
-            - 실행 버튼 1회 = 1스텝(낮 1턴 또는 밤 1단계)<br/>
-            - 승리 시 전원 역할 공개
-          </div>
-        </div>
+      <h3>스테이터스 (0~50)</h3>
+      <div class="row">
+        <div><label>카리스마</label><input id="charisma" type="number" min="0" max="50" step="0.1"></div>
+        <div><label>논리력</label><input id="logic" type="number" min="0" max="50" step="0.1"></div>
+        <div><label>연기력</label><input id="acting" type="number" min="0" max="50" step="0.1"></div>
+        <div><label>귀염성</label><input id="charm" type="number" min="0" max="50" step="0.1"></div>
+        <div><label>스텔스</label><input id="stealth" type="number" min="0" max="50" step="0.1"></div>
+        <div><label>직감</label><input id="intuition" type="number" min="0" max="50" step="0.1"></div>
       </div>
-    </div>
+
+      <h3>성격 (0.00 ~ 1.00)</h3>
+      <div class="row">
+        <div><label>쾌활함</label><input id="cheer" type="number" min="0" max="1" step="0.01"></div>
+        <div><label>사회성</label><input id="social" type="number" min="0" max="1" step="0.01"></div>
+        <div><label>논리성향</label><input id="logical" type="number" min="0" max="1" step="0.01"></div>
+        <div><label>상냥함</label><input id="kindness" type="number" min="0" max="1" step="0.01"></div>
+        <div><label>욕망</label><input id="desire" type="number" min="0" max="1" step="0.01"></div>
+        <div><label>용기</label><input id="courage" type="number" min="0" max="1" step="0.01"></div>
+      </div>
+
+      <h3>사용 가능 커맨드</h3>
+      <div id="command-box" class="command-box"></div>
+
+      <div class="footer-btns">
+        <button type="submit">캐릭터 추가</button>
+        <button type="button" id="save-roster">세이브</button>
+        <input type="file" id="load-roster" />
+      </div>
+
+    </form>
+
+    <h3>캐릭터 목록</h3>
+    <ul id="char-list"></ul>
+
   </div>
 
-  <!-- 엔트리 -->
-  <script type="module" src="./js/main.js"></script>
+  <!-- 오른쪽: 실행 / 로그 -->
+  <div class="panel">
+
+    <h2>게임 진행</h2>
+
+    <div class="footer-btns">
+      <button id="run-btn" disabled>실행</button>
+      <button id="save-log">로그 저장</button>
+    </div>
+
+    <h3>로그</h3>
+    <div id="log"></div>
+
+  </div>
+
+</div>
+
+<!-- 메인 스크립트 -->
+<script type="module" src="./js/main.js"></script>
+
 </body>
 </html>
