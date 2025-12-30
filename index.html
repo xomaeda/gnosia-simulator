@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
 
+  <!-- 캐시 방지(페이지가 안 바뀌는 느낌 방지) -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -17,6 +18,7 @@
            format('woff');
       font-weight: normal;
       font-style: normal;
+      font-display: swap;
     }
 
     :root{
@@ -38,6 +40,11 @@
       font-family: 'Cafe24Gounnight', ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       line-height: 1.55;
       letter-spacing: 0.02em;
+    }
+
+    /* ✅ 폰트 강제 적용(덮어쓰기 방지) */
+    html, body, input, select, button, textarea, label, legend, fieldset, div, p, span, h1, h2, h3, h4, h5 {
+      font-family: 'Cafe24Gounnight', ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
     }
 
     h1{ margin:0 0 10px; font-size:28px; letter-spacing:0.5px; }
@@ -112,37 +119,54 @@
     .kv .k .hint{ color:#8c8c90; font-size: 11px; }
     .kv input{ width:100%; max-width:none; }
 
-    /* ✅ 여기(핵심): 커맨드 체크박스가 “안 보이는 문제” 해결
-       - auto-fit로 폭에 맞게 열 수 자동 조절
-       - max-height + overflow 로 스크롤 제공
-       - padding/border/bg로 영역이 눈에 띄게 */
+    /* ✅ 커맨드 목록: B안(이름 위 / 조건 아래) */
     .cmd-grid{
       display:grid;
-      gap: 6px 10px;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      max-height: 280px;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      max-height: 320px;
       overflow: auto;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 12px;
       background: rgba(0,0,0,0.14);
     }
 
     .cmd{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding: 7px 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.02);
-      min-height: 34px;
-      white-space: nowrap;
+      display:grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px 10px;
+      align-items: start;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      min-height: 60px;
     }
-    .cmd input{ width:16px; height:16px; flex: 0 0 auto; }
-    .cmd .name{ font-size: 13px; overflow:hidden; text-overflow: ellipsis; }
-    .cmd .req{ margin-left:auto; font-size:11px; color:#8c8c90; white-space:nowrap; }
-    .cmd.disabled{ opacity:.42; }
+    .cmd input{
+      width:16px; height:16px;
+      margin-top: 2px;
+    }
+
+    .cmd .text{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .cmd .name{
+      font-size: 14px;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.25;
+    }
+    .cmd .req{
+      font-size: 12px;
+      color: #8c8c90;
+      white-space: normal;
+      line-height: 1.2;
+    }
+
+    .cmd.disabled{
+      opacity:.42;
+      background: rgba(255,255,255,0.02);
+    }
 
     .toolbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top: 10px; }
     .toolbar input[type="file"]{ padding: 6px 8px; max-width: 280px; }
@@ -179,20 +203,10 @@
     .char-entry .top b{ font-size: 13px; }
     .char-entry .mini{ color: var(--muted); font-size: 11px; }
 
-    .char-actions{
-      display:flex; gap:6px; align-items:center;
-    }
-    .btn-mini{
-      padding: 6px 8px;
-      font-size: 12px;
-      border-radius: 10px;
-    }
-    .btn-warn{
-      border-color: rgba(255,107,107,0.6);
-    }
-    .btn-warn:hover{
-      border-color: var(--bad);
-    }
+    .char-actions{ display:flex; gap:6px; align-items:center; }
+    .btn-mini{ padding: 6px 8px; font-size: 12px; border-radius: 10px; }
+    .btn-warn{ border-color: rgba(255,107,107,0.6); }
+    .btn-warn:hover{ border-color: var(--bad); }
 
     .logline{ margin:0 0 6px; }
     .tag{ color: var(--accent); }
@@ -256,7 +270,6 @@
       </fieldset>
 
       <div class="toolbar">
-        <!-- ✅ 버튼들은 전부 type=button (추가가 안 되는 문제 예방) -->
         <button type="button" id="addChar">캐릭터 추가</button>
         <button type="button" id="applyEditBtn" disabled style="display:none;">수정 적용</button>
         <button type="button" id="cancelEditBtn" disabled style="display:none;">수정 취소</button>
@@ -396,13 +409,15 @@
         const reqText = cmd.req.length
           ? cmd.req.map(([k,v])=>{
               const label = STAT_FIELDS.find(s=>s.key===k)?.label ?? k;
-              return `${label}≥${v}`;
+              return `${label} ≥ ${v}`;
             }).join(", ")
-          : "조건없음";
+          : "조건 없음";
         row.innerHTML = `
           <input type="checkbox" data-cmd="${cmd.name}">
-          <span class="name">${cmd.name}</span>
-          <span class="req">${reqText}</span>
+          <div class="text">
+            <div class="name">${cmd.name}</div>
+            <div class="req">${reqText}</div>
+          </div>
         `;
         cmdList.appendChild(row);
       });
