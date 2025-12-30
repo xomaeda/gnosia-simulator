@@ -4,26 +4,11 @@
   <meta charset="UTF-8">
   <title>Gnosia Simulator</title>
   <style>
-    body {
-      background: #111;
-      color: #eee;
-      font-family: monospace;
-      padding: 20px;
-    }
-    input, select, button {
-      margin: 4px;
-    }
-    fieldset {
-      margin-bottom: 10px;
-    }
-    #log {
-      border: 1px solid #444;
-      background: #000;
-      color: #0f0;
-      padding: 5px;
-      width: 100%;
-      box-sizing: border-box;
-    }
+    body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+    input, select, button { margin: 4px; }
+    fieldset { margin-bottom: 10px; }
+    #log { border: 1px solid #444; height: 300px; overflow-y: auto; padding: 5px; background: #000; }
+    label { display: block; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -32,42 +17,69 @@
 
 <h2>캐릭터 생성</h2>
 
+<label for="name">이름</label>
 <input id="name" placeholder="이름">
+
+<label for="gender">성별</label>
 <select id="gender">
   <option value="남성">남성</option>
   <option value="여성">여성</option>
   <option value="범성">범성</option>
 </select>
-<input id="age" type="number" placeholder="나이">
+
+<label for="age">나이</label>
+<input id="age" type="number" min="0" placeholder="나이">
 
 <fieldset>
   <legend>스테이터스 (0~50)</legend>
-  <input id="charisma" type="number" placeholder="카리스마">
-  <input id="logic" type="number" placeholder="논리력">
-  <input id="acting" type="number" placeholder="연기력">
-  <input id="charm" type="number" placeholder="귀염성">
-  <input id="stealth" type="number" placeholder="스텔스">
-  <input id="intuition" type="number" placeholder="직감">
+  <label for="charisma">카리스마</label>
+  <input id="charisma" type="number" min="0" max="50" step="1" value="0">
+
+  <label for="logic">논리력</label>
+  <input id="logic" type="number" min="0" max="50" step="1" value="0">
+
+  <label for="acting">연기력</label>
+  <input id="acting" type="number" min="0" max="50" step="1" value="0">
+
+  <label for="charm">귀염성</label>
+  <input id="charm" type="number" min="0" max="50" step="1" value="0">
+
+  <label for="stealth">스텔스</label>
+  <input id="stealth" type="number" min="0" max="50" step="1" value="0">
+
+  <label for="intuition">직감</label>
+  <input id="intuition" type="number" min="0" max="50" step="1" value="0">
 </fieldset>
 
 <fieldset>
-  <legend>성격 (0~50)</legend>
-  <input id="cheer" type="number" placeholder="쾌활함">
-  <input id="social" type="number" placeholder="사회성">
-  <input id="logical" type="number" placeholder="논리성향">
-  <input id="kindness" type="number" placeholder="상냥함">
-  <input id="desire" type="number" placeholder="욕망">
-  <input id="courage" type="number" placeholder="용기">
+  <legend>성격 (0~1)</legend>
+  <label for="cheer">쾌활함</label>
+  <input id="cheer" type="number" min="0" max="1" step="0.01" value="0">
+
+  <label for="social">사회성</label>
+  <input id="social" type="number" min="0" max="1" step="0.01" value="0">
+
+  <label for="logical">논리성향</label>
+  <input id="logical" type="number" min="0" max="1" step="0.01" value="0">
+
+  <label for="kindness">상냥함</label>
+  <input id="kindness" type="number" min="0" max="1" step="0.01" value="0">
+
+  <label for="desire">욕망</label>
+  <input id="desire" type="number" min="0" max="1" step="0.01" value="0">
+
+  <label for="courage">용기</label>
+  <input id="courage" type="number" min="0" max="1" step="0.01" value="0">
 </fieldset>
 
 <button id="addChar">캐릭터 추가</button>
-<button id="runBtn" onclick="runSimulation()" disabled>실행</button>
+<button id="runBtn" disabled>실행</button>
 
 <h2>캐릭터 목록</h2>
 <ul id="charList"></ul>
 
 <h2>로그</h2>
-<textarea id="log" rows="15" readonly></textarea>
+<div id="log"></div>
 
 <script type="module" src="./main.js"></script>
 </body>
