@@ -1,71 +1,23 @@
-const Character = require("./src/Character");
-const GameState = require("./src/GameState");
-const runDayTurn = require("./src/DayPhase");
-const { runNightFree, runNightAttack } = require("./src/NightPhase");
-const Logger = require("./src/Logger");
+// main.js
+// 이 파일은 "실행 버튼"과 "게임 로직"을 연결하는 역할만 한다.
 
-/*
-  ↓↓↓ 여기서 캐릭터를 직접 만든다 ↓↓↓
-*/
+import GameState from "./src/GameState.js";
+import Logger from "./src/Logger.js";
 
-const characters = [
-  new Character(
-    "A",
-    "F",
-    22,
-    "적극",
-    { charisma: 30, logic: 25, acting: 20, intuition: 15, stealth: 10 },
-    "CREW"
-  ),
-  new Character(
-    "B",
-    "M",
-    24,
-    "중립",
-    { charisma: 20, logic: 20, acting: 15, intuition: 20, stealth: 15 },
-    "GNOSIA"
-  ),
-  new Character(
-    "C",
-    "F",
-    19,
-    "소극",
-    { charisma: 15, logic: 18, acting: 25, intuition: 22, stealth: 20 },
-    "CREW"
-  ),
-  new Character(
-    "D",
-    "M",
-    30,
-    "중립",
-    { charisma: 22, logic: 30, acting: 18, intuition: 10, stealth: 12 },
-    "CREW"
-  ),
-  new Character(
-    "E",
-    "F",
-    27,
-    "적극",
-    { charisma: 28, logic: 15, acting: 30, intuition: 12, stealth: 8 },
-    "GNOSIA"
-  )
-];
+// HTML이 전부 로드된 뒤에 실행되도록 보장
+window.onload = () => {
+  // 게임 상태 생성 (아직 실행 안 됨)
+  const game = new GameState();
 
-const game = new GameState(characters);
+  // 실행 버튼 찾기
+  const runButton = document.getElementById("runBtn");
 
-/*
-  실행 버튼 시뮬레이션
-*/
-while (true) {
-  const result = game.isGameOver();
-  if (result) {
-    Logger.header(`${result} 진영 승리`);
-    Logger.revealRoles(game.characters);
-    break;
-  }
+  // 버튼 클릭 시 동작 정의
+  runButton.onclick = () => {
+    game.execute();
+  };
 
-  if (game.phase === "DAY") runDayTurn(game);
-  else if (game.phase === "NIGHT_FREE") runNightFree(game);
-  else if (game.phase === "NIGHT_ATTACK") runNightAttack(game);
-}
-
+  // 최초 안내 로그
+  Logger.separator("시뮬레이터 시작");
+  Logger.write("실행 버튼을 누르면 턴이 진행됩니다.");
+};
