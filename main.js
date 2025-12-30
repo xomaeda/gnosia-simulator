@@ -1,6 +1,6 @@
 /************************
  * Gnosia Fan Simulator
- * AI Personality Ver.
+ * Night Phase Ver.
  ************************/
 
 /* ========= 캐릭터 ========= */
@@ -16,7 +16,7 @@ class Character {
     this.like = {};
     this.aggro = 0;
     this.alive = true;
-    this.role = null;
+    this.role = cfg.role; // "GNOSIA" | "CREW" | etc (비공개)
 
     this.commandHistory = {};
   }
@@ -30,11 +30,10 @@ class Character {
 
 const GameState = {
   characters: [],
-  phase: "DAY",
-  turn: 0,
+  phase: "DAY",          // DAY | NIGHT
+  dayTurn: 0,            // 낮: 0~4 (5번 누르면 종료)
+  nightStep: 0,          // 밤: 0=자유행동, 1=습격
   day: 1,
-  lastCommand: null,
-  lastTarget: null,
   log: []
 };
 
@@ -49,12 +48,10 @@ function addLog(text) {
   }
 }
 
-/* ========= 커맨드 ========= */
+/* ========= 커맨드 (낮 전용, 구조 유지) ========= */
 
 const Commands = {};
 const C = Commands;
-
-/* ---- 예시용 일부 (구조는 동일, 전부 이미 있음) ---- */
 
 C["의심한다"] = {
   baseWeight: 10,
@@ -62,8 +59,6 @@ C["의심한다"] = {
   apply: (s, a, t) => {
     addLog(`${a.name}:[의심한다] ${t.name}는 수상하다.`);
     a.aggro += 5;
-    s.lastCommand = "의심한다";
-    s.lastTarget = t;
   }
 };
 
@@ -72,7 +67,7 @@ C["잡담한다"] = {
   canUse: () => true,
   apply: (s, a) => {
     addLog(`${a.name}:[잡담한다] 별일 없네.`);
-    a.aggro -= 3;
+    a.aggro = Math.max(0, a.aggro - 3);
   }
 };
 
@@ -81,73 +76,44 @@ C["얼버무린다"] = {
   canUse: (s, a) => a.stats.stealth >= 25,
   apply: (s, a) => {
     addLog(`${a.name}:[얼버무린다] …다음으로.`);
-    s.lastCommand = null;
-    s.lastTarget = null;
   }
 };
 
-C["반론한다"] = {
-  baseWeight: 8,
-  canUse: () => true,
-  apply: (s, a) => {
-    addLog(`${a.name}:[반론한다] 그건 이상해.`);
-    a.aggro += 4;
-    s.lastCommand = "반론한다";
-  }
-};
-
-/* ========= AI 선택 로직 ========= */
+/* ========= AI 커맨드 선택 ========= */
 
 function chooseCommandAI(actor, target) {
   let pool = [];
 
   for (let cmd of actor.commands) {
     const def = Commands[cmd];
-    if (!def) continue;
-    if (!def.canUse(GameState, actor, target)) continue;
+    if (!def || !def.canUse(GameState, actor, target)) continue;
 
-    let weight = def.baseWeight || 5;
+    let w = def.baseWeight || 5;
 
-    /* 성향 반영 */
-    if (cmd === "의심한다" || cmd === "반론한다") {
-      weight *= actor.personality.aggressive;
-    }
+    if (cmd === "의심한다") w *= actor.personality.aggressive;
+    if (cmd === "잡담한다") w *= actor.personality.cautious;
 
-    if (cmd === "잡담한다" || cmd === "얼버무린다") {
-      weight *= actor.personality.cautious;
-    }
-
-    /* 어그로 보정 */
-    if (actor.aggro > 20 && (cmd === "잡담한다" || cmd === "얼버무린다")) {
-      weight *= 2;
-    }
-
-    /* 반복 사용 패널티 */
     const used = actor.commandHistory[cmd] || 0;
-    weight *= Math.max(0.2, 1 - used * 0.2);
+    w *= Math.max(0.2, 1 - used * 0.2);
 
-    if (weight > 0) {
-      pool.push({ cmd, weight });
-    }
+    pool.push({ cmd, w });
   }
 
   if (pool.length === 0) return null;
 
-  /* 가중치 랜덤 */
-  const total = pool.reduce((s, p) => s + p.weight, 0);
-  let roll = Math.random() * total;
+  const total = pool.reduce((s, p) => s + p.w, 0);
+  let r = Math.random() * total;
 
   for (let p of pool) {
-    roll -= p.weight;
-    if (roll <= 0) return p.cmd;
+    r -= p.w;
+    if (r <= 0) return p.cmd;
   }
-
   return pool[0].cmd;
 }
 
-/* ========= 실행 ========= */
+/* ========= 낮 처리 ========= */
 
-window.runSimulation = function () {
+function runDayTurn() {
   const alive = GameState.characters.filter(c => c.alive);
   if (alive.length < 2) return;
 
@@ -159,30 +125,102 @@ window.runSimulation = function () {
 
   Commands[cmd].apply(GameState, actor, target);
   actor.used(cmd);
+
+  GameState.dayTurn++;
+
+  if (GameState.dayTurn >= 5) {
+    GameState.phase = "NIGHT";
+    GameState.nightStep = 0;
+    GameState.dayTurn = 0;
+    addLog(`--- 밤이 되었습니다 ---`);
+  }
+}
+
+/* ========= 밤: 자유행동 ========= */
+
+function runNightFreeAction() {
+  addLog(`[밤 자유행동]`);
+
+  const alive = GameState.characters.filter(c => c.alive);
+
+  alive.forEach(c => {
+    if (Math.random() < 0.5) {
+      addLog(`${c.name}는 혼자 시간을 보냈다.`);
+    } else {
+      const other = alive.find(o => o !== c);
+      if (other) {
+        addLog(`${c.name}는 ${other.name}와 함께 시간을 보냈다.`);
+      }
+    }
+  });
+
+  GameState.nightStep = 1;
+}
+
+/* ========= 밤: 그노시아 습격 ========= */
+
+function runNightAttack() {
+  const gnosia = GameState.characters.filter(
+    c => c.alive && c.role === "GNOSIA"
+  );
+  const victims = GameState.characters.filter(
+    c => c.alive && c.role !== "GNOSIA"
+  );
+
+  if (gnosia.length === 0 || victims.length === 0) {
+    addLog(`밤은 조용히 지나갔다.`);
+  } else {
+    const target = victims[Math.floor(Math.random() * victims.length)];
+    target.alive = false;
+    addLog(`${target.name}가 그노시아에게 습격당했습니다.`);
+  }
+
+  GameState.phase = "DAY";
+  GameState.day++;
+  addLog(`--- ${GameState.day}일째 낮이 되었습니다 ---`);
+}
+
+/* ========= 실행 버튼 ========= */
+
+window.runSimulation = function () {
+  if (GameState.phase === "DAY") {
+    runDayTurn();
+  } else {
+    if (GameState.nightStep === 0) {
+      runNightFreeAction();
+    } else {
+      runNightAttack();
+    }
+  }
 };
 
 /* ========= 테스트 캐릭터 ========= */
 
 GameState.characters.push(
   new Character({
-    name: "AI테스트",
-    stats: {
-      charisma: 40,
-      logic: 30,
-      acting: 30,
-      charm: 30,
-      stealth: 30,
-      intuition: 30
-    },
-    personality: {
-      aggressive: 0.7,
-      cautious: 0.3,
-      logical: 0.6,
-      emotional: 0.4
-    },
+    name: "A",
+    role: "GNOSIA",
+    stats: { charisma: 30, logic: 30, acting: 30, charm: 30, stealth: 30, intuition: 30 },
+    personality: { aggressive: 0.7, cautious: 0.3 },
+    commands: Object.keys(Commands)
+  }),
+  new Character({
+    name: "B",
+    role: "CREW",
+    stats: { charisma: 20, logic: 20, acting: 20, charm: 20, stealth: 20, intuition: 20 },
+    personality: { aggressive: 0.3, cautious: 0.7 },
+    commands: Object.keys(Commands)
+  }),
+  new Character({
+    name: "C",
+    role: "CREW",
+    stats: { charisma: 25, logic: 25, acting: 25, charm: 25, stealth: 25, intuition: 25 },
+    personality: { aggressive: 0.4, cautious: 0.6 },
     commands: Object.keys(Commands)
   })
 );
 
-addLog("AI 성향 기반 커맨드 선택 로드 완료.");
+addLog("--- 시뮬레이터 시작 ---");
+addLog("실행 버튼을 눌러 진행하세요.");
+
 
