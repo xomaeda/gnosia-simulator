@@ -5,12 +5,12 @@
 const characters = [];
 const MIN_CHARACTERS = 5;
 
-let phase = "setup";   // setup | day | night
+let phase = "setup";   // setup | day | vote | night
 let dayCount = 1;
 let turnCount = 0;
 const MAX_TURNS = 5;
 
-let nightStep = 0;     // 0 = 밤 시작 전, 1 = 자유행동 후
+let nightStep = 0;
 
 // ==============================
 // DOM
@@ -128,6 +128,11 @@ window.runSimulation = function () {
     return;
   }
 
+  if (phase === "vote") {
+    runVote();
+    return;
+  }
+
   if (phase === "night") {
     runNight();
     return;
@@ -148,14 +153,13 @@ function runDayTurn() {
   executeCommand(speaker, command);
 
   if (turnCount >= MAX_TURNS) {
-    phase = "night";
-    nightStep = 0;
-    log(`\n=== 낮 종료 → 밤이 되었습니다 ===`);
+    phase = "vote";
+    log(`\n=== 투표 시간 ===`);
   }
 }
 
 // ==============================
-// 커맨드
+// 커맨드 (임시)
 // ==============================
 
 function chooseCommand(speaker) {
@@ -192,9 +196,67 @@ function executeCommand(speaker, command) {
 
     case "분위기메이커":
       log(`${speaker.name} 가 분위기를 누그러뜨렸다.`);
-      speaker.aggro -= 1;
+      speaker.aggro = Math.max(0, speaker.aggro - 1);
       break;
   }
+}
+
+// ==============================
+// 🗳 투표 시스템
+// ==============================
+
+function runVote() {
+  const votes = {};
+
+  aliveChars().forEach(voter => {
+    const targets = aliveChars().filter(c => c !== voter);
+
+    let bestScore = -Infinity;
+    let chosen = null;
+
+    targets.forEach(t => {
+      let score = 0;
+      score += t.suspicion * 2;
+      score += t.aggro;
+      score -= voter.favor[t.name] || 0;
+      score -= voter.trust[t.name] || 0;
+      score += Math.random() * 3; // 랜덤성
+
+      if (score > bestScore) {
+        bestScore = score;
+        chosen = t;
+      }
+    });
+
+    if (chosen) {
+      votes[chosen.name] = (votes[chosen.name] || 0) + 1;
+      log(`${voter.name} → ${chosen.name} 에 투표`);
+    }
+  });
+
+  let max = 0;
+  let candidates = [];
+
+  for (const name in votes) {
+    if (votes[name] > max) {
+      max = votes[name];
+      candidates = [name];
+    } else if (votes[name] === max) {
+      candidates.push(name);
+    }
+  }
+
+  const eliminatedName = randomFrom(candidates);
+  const eliminated = characters.find(c => c.name === eliminatedName);
+  eliminated.alive = false;
+
+  log(`\n🧊 ${eliminated.name} 가 콜드슬립 되었다.`);
+
+  updateCharacterList();
+
+  phase = "night";
+  nightStep = 0;
+  log(`\n=== 밤이 되었습니다 ===`);
 }
 
 // ==============================
@@ -203,20 +265,16 @@ function executeCommand(speaker, command) {
 
 function runNight() {
 
-  // 1단계: 자유행동
   if (nightStep === 0) {
     log(`\n[밤 ${dayCount}일차 – 자유행동]`);
-
     aliveChars().forEach(c => {
       log(`${c.name} 는 조용히 밤을 보냈다.`);
     });
-
     nightStep = 1;
     log(`\n(버튼을 다시 누르면 밤이 끝납니다)`);
     return;
   }
 
-  // 2단계: 습격
   if (nightStep === 1) {
     log(`\n[밤 ${dayCount}일차 – 습격 발생]`);
 
@@ -229,7 +287,6 @@ function runNight() {
 
     updateCharacterList();
 
-    // 다음 날로
     dayCount++;
     phase = "day";
     turnCount = 0;
