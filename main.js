@@ -289,7 +289,7 @@ function renderCharacters() {
     const del = document.createElement("button");
     del.textContent = "삭제";
     del.addEventListener("click", () => {
-      if (engine) return alert("게임 진행 중엔 삭제할 수 없어. (새로고침 후 다시 시작해줘)");
+      if (engine) return alert("게임 진행 중엔 삭제할 수 없습니다. (새로고침 후 다시 시작하세요)");
       characters.splice(idx, 1);
       renderCharacters();
       updateRunButton();
@@ -319,7 +319,7 @@ function readFormCharacter() {
   const gender = elGender.value;
   const age = toIntNonNeg(elAge.value, 0);
 
-  if (!name) throw new Error("이름을 입력해줘.");
+  if (!name) throw new Error("이름을 입력하세요.");
 
   const status = currentStatus();
   const personality = currentPersonality();
@@ -404,7 +404,7 @@ async function loadCharactersFromFile(file) {
   const data = JSON.parse(text);
 
   if (!data || !Array.isArray(data.characters)) {
-    throw new Error("잘못된 파일 형식이야. (characters 배열이 없음)");
+    throw new Error("잘못된 파일 형식입니다. (characters 배열이 없음)");
   }
 
   // 간단 검증 + 보정
@@ -458,7 +458,7 @@ function startGameIfNeeded() {
 
 function stepGame() {
   if (characters.length < 5) {
-    alert("캐릭터는 최소 5명 이상이어야 실행할 수 있어.");
+    alert("캐릭터가 최소 5명 이상이어야 실행할 수 있습니다.");
     return;
   }
   startGameIfNeeded();
@@ -502,7 +502,7 @@ saveBtn.addEventListener("click", () => {
 
 loadBtn.addEventListener("click", async () => {
   if (!loadFile.files || loadFile.files.length === 0) {
-    alert("로드할 파일을 선택해줘.");
+    alert("로드할 파일을 선택하세요.");
     return;
   }
   try {
@@ -524,5 +524,5 @@ renderPersonalityInputs();
 renderCommandChecklist([]);
 renderCharacters();
 
-addLogLine("준비 완료. 캐릭터를 5명 이상 만들고 실행 버튼을 누르면 1턴씩 진행돼.");
+addLogLine("준비 완료. 캐릭터를 5명 이상 만들고 실행 버튼을 누르면 1턴씩 진행됩니다.");
 
