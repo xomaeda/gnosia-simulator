@@ -70,14 +70,14 @@ function injectUtilityButtons() {
 }
 
 function validateCharacter(c) {
-  if (!c.name?.trim()) return "이름을 입력해줘.";
+  if (!c.name?.trim()) return "이름을 입력하세요.";
   if (c.age < 0) return "나이는 음수가 될 수 없어.";
   for (const k of ["charisma","logic","acting","charm","stealth","intuition"]) {
-    if (c.stats[k] < 0) return "스테이터스는 음수가 될 수 없어.";
-    if (c.stats[k] > 50) return "스테이터스는 50을 넘을 수 없어.";
+    if (c.stats[k] < 0) return "스테이터스는 음수가 될 수 없습니다.";
+    if (c.stats[k] > 50) return "스테이터스는 50을 넘을 수 없습니다.";
   }
   for (const k of ["cheer","social","logical","kindness","desire","courage"]) {
-    if (c.personality[k] < 0 || c.personality[k] > 1) return "성격은 0.00~1.00 범위야.";
+    if (c.personality[k] < 0 || c.personality[k] > 1) return "성격은 0.00~1.00 범위입니다.";
   }
   return null;
 }
@@ -174,7 +174,7 @@ function renderCharacters() {
     // delete
     li.querySelector(".delBtn").onclick = () => {
       if (state.game?.started) {
-        alert("게임이 시작된 후에는 캐릭터를 삭제할 수 없어. 새로고침 후 다시 시작해줘.");
+        alert("게임이 시작된 후에는 캐릭터를 삭제할 수 없습니다. 새로고침 후 다시 시작하세요.");
         return;
       }
       state.characters = state.characters.filter(x => x.id !== c.id);
@@ -185,7 +185,7 @@ function renderCharacters() {
     // edit -> simple: load to form and replace
     li.querySelector(".editBtn").onclick = () => {
       if (state.game?.started) {
-        alert("게임이 시작된 후에는 캐릭터를 수정할 수 없어. 새로고침 후 다시 시작해줘.");
+        alert("게임이 시작된 후에는 캐릭터를 수정할 수 없습니다. 새로고침 후 다시 시작하세요.");
         return;
       }
       // load form
@@ -284,7 +284,7 @@ function renderRelations() {
   wrap.innerHTML = "";
 
   if (!state.game?.started) {
-    wrap.innerHTML = `<div class="notice">게임을 시작하면 관계도(신뢰/우호)가 생성돼.</div>`;
+    wrap.innerHTML = `<div class="notice">게임을 시작하면 관계도(신뢰/우호)가 생성됩니다.</div>`;
     return;
   }
 
@@ -364,7 +364,7 @@ function wireButtons() {
       $("#addChar").textContent = "캐릭터 추가";
       delete $("#addChar").dataset.editId;
     } else {
-      if (state.characters.length >= 15) return alert("캐릭터는 최대 15명까지야.");
+      if (state.characters.length >= 15) return alert("캐릭터는 최대 15명까지입니다.");
       state.characters.push(c);
     }
 
@@ -390,13 +390,13 @@ function wireButtons() {
   };
 
   $("#startGame").onclick = () => {
-    if (state.characters.length < 5) return alert("캐릭터는 최소 5명 필요해.");
+    if (state.characters.length < 5) return alert("캐릭터는 최소 5명 필요합니다.");
     enforceGnosiaLimit();
 
     const settings = getSettings();
     const max = maxGnosia(state.characters.length);
     if (settings.gnosiaCount > max) {
-      alert(`그노시아 수는 현재 인원(${state.characters.length})에서 최대 ${max}명까지야.`);
+      alert(`그노시아 수는 현재 인원(${state.characters.length})에서 최대 ${max}명까지입니다.`);
       return;
     }
 
@@ -453,7 +453,7 @@ function wireButtons() {
           enforceGnosiaLimit();
           refreshStartAvailability();
         } catch {
-          alert("불러오기 실패: JSON 파일 형식이 올바르지 않아.");
+          alert("불러오기 실패: JSON 파일 형식이 올바르지 않습니다.");
         } finally {
           t.value = "";
         }
