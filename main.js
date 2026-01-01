@@ -74,11 +74,11 @@ let GameEngine = null;
 let engine = null;
 let gameStarted = false;
 
-let chars = [];              // character list
-let editId = null;           // currently editing char id
+let chars = [];
+let editId = null;
 
 // -------------------------------
-// Utilities
+// Log
 // -------------------------------
 function log(line) {
   if (!logBox) return;
@@ -86,11 +86,6 @@ function log(line) {
   div.textContent = line;
   logBox.appendChild(div);
   logBox.scrollTop = logBox.scrollHeight;
-}
-
-function clearLog() {
-  if (!logBox) return;
-  logBox.innerHTML = "";
 }
 
 function uid() {
@@ -108,19 +103,16 @@ function num(n, fallback = 0) {
   return Number.isFinite(x) ? x : fallback;
 }
 
-// age: 0 이상 정수
 function normalizeAge(v) {
   const x = Math.floor(num(v, 0));
   return Math.max(0, x);
 }
 
-// status: 0~50, 소수 1자리
 function normalizeStat(v) {
   const x = clamp(v, 0, 50);
   return Math.round(x * 10) / 10;
 }
 
-// personality: 0.00~1.00, 소수 2자리
 function normalizePers(v) {
   const x = clamp(v, 0, 1);
   return Math.round(x * 100) / 100;
@@ -141,15 +133,41 @@ function downloadJSON(filename, obj) {
 }
 
 // -------------------------------
-// Dynamic import engine modules (중요)
+// 1) commands.js 먼저 로드 (게임엔진이 깨져도 커맨드 UI는 떠야 함)
 // -------------------------------
-async function loadEngineModules() {
-  // ✅ 여기서 "엔진이 HTML로 응답"하는지까지 검사해서 로그로 알려줌
+async function loadCommandsModule() {
+  try {
+    const cmdMod = await import("./engine/commands.js");
+    COMMAND_DEFS = cmdMod.COMMAND_DEFS || [];
+    cmdStatEligible = cmdMod.statEligible || null;
+
+    if (!Array.isArray(COMMAND_DEFS) || COMMAND_DEFS.length === 0) {
+      throw new Error("COMMAND_DEFS가 비어있음");
+    }
+    if (typeof cmdStatEligible !== "function") {
+      throw new Error("statEligible 함수가 없음");
+    }
+
+    log("✅ commands.js 로딩 성공 (커맨드 UI 준비)");
+    return true;
+  } catch (e) {
+    log("❌ commands.js 로딩 실패: 커맨드 체크박스를 표시할 수 없음");
+    log(`   - 상세: ${String(e?.message || e)}`);
+    COMMAND_DEFS = [];
+    cmdStatEligible = null;
+    return false;
+  }
+}
+
+// -------------------------------
+// 2) game.js는 별도로 로드 (실행버튼에만 영향)
+// -------------------------------
+async function loadGameModule() {
+  // game.js가 HTML로 응답되는지 체크해서 로그로 알려줌
   async function checkJS(url) {
     const res = await fetch(url, { cache: "no-store" });
     const ct = (res.headers.get("content-type") || "").toLowerCase();
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    // GitHub Pages에서 파일이 없으면 종종 HTML(리다이렉트/404페이지)을 200으로 주기도 함
     if (ct.includes("text/html")) {
       throw new Error(`JS가 아닌 HTML로 응답 중: ${url} (content-type=${ct})`);
     }
@@ -157,35 +175,22 @@ async function loadEngineModules() {
   }
 
   try {
-    // 실제로 배포된 URL 기준으로 검사
     const base = new URL(".", location.href).toString();
-    await checkJS(base + "engine/commands.js");
     await checkJS(base + "engine/game.js");
 
-    const cmdMod = await import("./engine/commands.js");
     const gameMod = await import("./engine/game.js");
-
-    COMMAND_DEFS = cmdMod.COMMAND_DEFS || [];
-    cmdStatEligible = cmdMod.statEligible || null;
     GameEngine = gameMod.GameEngine || null;
 
-    if (!Array.isArray(COMMAND_DEFS) || COMMAND_DEFS.length === 0) {
-      throw new Error("commands.js에서 COMMAND_DEFS를 읽지 못했음");
-    }
-    if (typeof cmdStatEligible !== "function") {
-      throw new Error("commands.js에서 statEligible 함수를 읽지 못했음");
-    }
     if (typeof GameEngine !== "function") {
-      throw new Error("game.js에서 GameEngine 클래스를 읽지 못했음");
+      throw new Error("GameEngine 클래스를 찾지 못함");
     }
 
-    log("✅ 엔진 로딩 성공: commands.js / game.js");
+    log("✅ game.js 로딩 성공 (실행 가능)");
     return true;
   } catch (e) {
-    log("❌ 엔진(game.js)을 불러오지 못했습니다.");
-    log("   - 가장 흔한 원인: GitHub Pages가 engine/game.js를 JS가 아니라 HTML로 제공함(경로/배포 설정 문제)");
-    log("   - 확인: 브라우저에서 /engine/game.js 를 열었을 때 코드가 아니라 HTML이 보이면 그 상태가 맞음");
+    log("⚠️ game.js 로딩 실패: 실행(시뮬레이션 진행)은 불가하지만, 캐릭터 생성/커맨드 체크는 가능");
     log(`   - 상세: ${String(e?.message || e)}`);
+    GameEngine = null;
     return false;
   }
 }
@@ -217,8 +222,8 @@ function makeKVInput(container, key, label, opts = {}) {
   return input;
 }
 
-let statInputs = {}; // key -> input
-let persInputs = {}; // key -> input
+let statInputs = {};
+let persInputs = {};
 
 function buildStatPersUI() {
   if (statsGrid) statsGrid.innerHTML = "";
@@ -254,12 +259,19 @@ function buildCommandUI() {
   commandList.innerHTML = "";
   cmdCheckboxes.clear();
 
-  // COMMAND_DEFS: [{id,label,category,public,...}] 형태를 기대
-  // category별 그룹
+  if (!Array.isArray(COMMAND_DEFS) || COMMAND_DEFS.length === 0) {
+    // commands.js가 로드 실패했을 때 최소 안내
+    const p = document.createElement("div");
+    p.className = "mini";
+    p.textContent = "커맨드 목록을 불러오지 못했습니다. (engine/commands.js 로딩 실패)";
+    commandList.appendChild(p);
+    return;
+  }
+
   const groups = new Map();
   for (const def of COMMAND_DEFS) {
     if (!def?.id) continue;
-    if (def.public === false) continue; // 숨김 커맨드 제외
+    if (def.public === false) continue;
     const cat = def.category || "ETC";
     if (!groups.has(cat)) groups.set(cat, []);
     groups.get(cat).push(def);
@@ -281,7 +293,7 @@ function buildCommandUI() {
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.dataset.cmdId = def.id;
-      cb.checked = true; // 기본 체크(원하는대로 바꿔도 됨)
+      cb.checked = true;
 
       const name = document.createElement("span");
       name.className = "cmd-name";
@@ -289,8 +301,8 @@ function buildCommandUI() {
 
       item.appendChild(cb);
       item.appendChild(name);
-
       box.appendChild(item);
+
       cmdCheckboxes.set(def.id, cb);
     }
 
@@ -300,13 +312,10 @@ function buildCommandUI() {
   refreshCommandCheckboxDisable();
 }
 
-// 현재 입력된 스탯 기준으로 “스탯 미달 커맨드 체크 불가(비활성)” 적용
 function refreshCommandCheckboxDisable() {
-  if (!cmdStatEligible) return; // 엔진/commands 미로드면 건너뜀
+  if (typeof cmdStatEligible !== "function") return;
 
-  const tmpChar = {
-    stats: {},
-  };
+  const tmpChar = { stats: {} };
   for (const [k] of STAT_FIELDS) {
     tmpChar.stats[k] = normalizeStat(statInputs?.[k]?.value ?? 0);
   }
@@ -332,16 +341,11 @@ function readFormToChar() {
   }
 
   const stats = {};
-  for (const [k] of STAT_FIELDS) {
-    stats[k] = normalizeStat(statInputs?.[k]?.value ?? 0);
-  }
+  for (const [k] of STAT_FIELDS) stats[k] = normalizeStat(statInputs?.[k]?.value ?? 0);
 
   const personality = {};
-  for (const [k] of PERS_FIELDS) {
-    personality[k] = normalizePers(persInputs?.[k]?.value ?? 0);
-  }
+  for (const [k] of PERS_FIELDS) personality[k] = normalizePers(persInputs?.[k]?.value ?? 0);
 
-  // enabledCommands: 체크된 것만 (단, 스탯 미달은 체크 자체가 불가라 자연히 제외됨)
   const enabledCommands = [];
   for (const [cmdId, cb] of cmdCheckboxes.entries()) {
     if (cb.checked && !cb.disabled) enabledCommands.push(cmdId);
@@ -355,22 +359,14 @@ function fillFormFromChar(c) {
   elGender.value = c.gender;
   elAge.value = c.age;
 
-  for (const [k] of STAT_FIELDS) {
-    statInputs[k].value = c.stats?.[k] ?? 0;
-  }
-  for (const [k] of PERS_FIELDS) {
-    persInputs[k].value = c.personality?.[k] ?? 0;
-  }
+  for (const [k] of STAT_FIELDS) statInputs[k].value = c.stats?.[k] ?? 0;
+  for (const [k] of PERS_FIELDS) persInputs[k].value = c.personality?.[k] ?? 0;
 
-  // 체크 반영
   refreshCommandCheckboxDisable();
   const set = new Set(c.enabledCommands || []);
   for (const [cmdId, cb] of cmdCheckboxes.entries()) {
-    if (cb.disabled) {
-      cb.checked = false;
-    } else {
-      cb.checked = set.has(cmdId);
-    }
+    if (cb.disabled) cb.checked = false;
+    else cb.checked = set.has(cmdId);
   }
 }
 
@@ -419,9 +415,7 @@ function renderCharList() {
     del.onclick = () => {
       if (!confirm(`${c.name}를 삭제할까요?`)) return;
       chars = chars.filter((x) => x.id !== c.id);
-      if (editId === c.id) {
-        cancelEdit();
-      }
+      if (editId === c.id) cancelEdit();
       renderCharList();
       refreshRunButton();
     };
@@ -445,7 +439,9 @@ function cancelEdit() {
 }
 
 function refreshRunButton() {
-  const ok = chars.length >= 5 && chars.length <= 15;
+  const okCount = chars.length >= 5 && chars.length <= 15;
+  // 엔진이 없으면 실행 불가
+  const ok = okCount && typeof GameEngine === "function";
   if (runBtn) runBtn.disabled = !ok;
 }
 
@@ -472,7 +468,7 @@ function doSave() {
 async function doLoad() {
   const file = loadFile?.files?.[0];
   if (!file) {
-    alert("로드할 json 파일을 선택해주세요.");
+    alert("로드할 json 파일을 선택하세요");
     return;
   }
   const text = await file.text();
@@ -500,7 +496,7 @@ async function doLoad() {
 }
 
 // -------------------------------
-// Game Config read
+// Game Config
 // -------------------------------
 function readGameConfig() {
   const rolesEnabled = {};
@@ -512,16 +508,10 @@ function readGameConfig() {
   rolesEnabled["버그"] = !!setBugEl?.checked;
 
   const gnosiaCount = Math.max(1, Math.min(6, Math.floor(num(gnosiaCountEl?.value, 1))));
-
   return { rolesEnabled, gnosiaCount };
 }
 
-// -------------------------------
-// Start / Step
-// -------------------------------
 function buildEngineChars() {
-  // GameEngine이 기대하는 형태에 맞춰 최소 필드만 구성
-  // (game.js에서 id/name/stats/personality/enabledCommands를 쓰는 구조를 가정)
   return chars.map((c) => ({
     id: c.id,
     name: c.name,
@@ -534,8 +524,8 @@ function buildEngineChars() {
 }
 
 function startGame() {
-  if (!GameEngine) {
-    log("❌ 엔진이 로드되지 않아 게임을 시작할 수 없음");
+  if (typeof GameEngine !== "function") {
+    log("❌ game.js(GameEngine)가 로드되지 않아 실행할 수 없음");
     return false;
   }
   if (chars.length < 5) {
@@ -556,22 +546,11 @@ function stepGame() {
     const ok = startGame();
     if (!ok) return;
   }
-
   if (!engine) return;
 
-  // game.js가 제공하는 메서드 이름이 버전에 따라 다를 수 있어 대비
-  if (typeof engine.step === "function") {
-    engine.step();
-    return;
-  }
-  if (typeof engine.runStep === "function") {
-    engine.runStep();
-    return;
-  }
-  if (typeof engine.tick === "function") {
-    engine.tick();
-    return;
-  }
+  if (typeof engine.step === "function") return engine.step();
+  if (typeof engine.runStep === "function") return engine.runStep();
+  if (typeof engine.tick === "function") return engine.tick();
 
   log("❌ 엔진에 step/runStep/tick 메서드가 없어 진행할 수 없음");
 }
@@ -581,26 +560,20 @@ function stepGame() {
 // -------------------------------
 async function init() {
   buildStatPersUI();
-  // commands/game 로드되면 체크 UI도 생성
-  const ok = await loadEngineModules();
-  if (ok) {
-    buildCommandUI();
-  } else {
-    // 엔진이 안 떠도 UI 자체는 보여야 하므로: “빈 커맨드 UI”라도 만들어둠
-    COMMAND_DEFS = [];
-    buildCommandUI();
-  }
+
+  // 1) 커맨드 먼저 로드 → 커맨드 체크박스는 항상 뜸
+  await loadCommandsModule();
+  buildCommandUI();
+
+  // 2) 게임엔진은 별도로 로드 → 실패해도 UI 유지
+  await loadGameModule();
 
   renderCharList();
   refreshRunButton();
   clearForm();
 
-  // ---------------- events ----------------
   addBtn?.addEventListener("click", () => {
-    if (chars.length >= 15) {
-      alert("캐릭터는 최대 15명까지 허용됩니다.");
-      return;
-    }
+    if (chars.length >= 15) return alert("캐릭터는 최대 15명까지 허용됩니다");
     const c = readFormToChar();
     if (!c) return;
 
@@ -619,11 +592,9 @@ async function init() {
     if (!c) return;
 
     const idx = chars.findIndex((x) => x.id === editId);
-    if (idx >= 0) {
-      chars[idx] = { ...chars[idx], ...c };
-      log(`✅ 캐릭터 수정: ${chars[idx].name}`);
-    }
+    if (idx >= 0) chars[idx] = { ...chars[idx], ...c };
 
+    log(`✅ 캐릭터 수정: ${chars[idx]?.name || ""}`);
     cancelEdit();
     renderCharList();
     refreshRunButton();
@@ -640,13 +611,6 @@ async function init() {
     const text = logBox?.innerText || "";
     downloadText("gnosia_log.txt", text);
   });
-
-  // 스탯 입력이 바뀌면 커맨드 비활성화 다시 계산
-  for (const [k] of STAT_FIELDS) {
-    statInputs[k]?.addEventListener("input", () => {
-      refreshCommandCheckboxDisable();
-    });
-  }
 }
 
 init();
