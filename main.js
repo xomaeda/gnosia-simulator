@@ -1,35 +1,20 @@
-// main.js (루트) — HTML: <script type="module" src="./main.js"></script>
+// main.js (루트) — index.html: <script type="module" src="./main.js"></script>
 
-// ✅ GitHub Pages 캐시/경로 문제를 피하기 위한 안전 로더 + 버전 쿼리
-const VERSION = "2026-01-01-1";
-const url = (p) => new URL(p, import.meta.url).href + `?v=${VERSION}`;
+import { GameEngine } from "./engine/game.js";
+import { COMMAND_DEFS, statEligible as cmdStatEligible } from "./engine/commands.js";
 
-let GameEngine, COMMAND_DEFS, cmdStatEligible;
-
+// (선택) roles / relation 모듈은 있으면 쓰고 없으면 무시
 let rolesApi = null;
-let relationApi = null;
-
 try {
-  ({ GameEngine } = await import(url("./engine/game.js")));
-  ({ COMMAND_DEFS, statEligible: cmdStatEligible } = await import(url("./engine/commands.js")));
-
-  // (선택) roles / relation 모듈은 있으면 쓰고 없으면 무시
-  try { rolesApi = await import(url("./engine/roles.js")); } catch {}
-  try { relationApi = await import(url("./engine/relation.js")); } catch {}
+  rolesApi = await import("./engine/roles.js");
 } catch (e) {
-  console.error(e);
-  const logBox = document.getElementById("log");
-  if (logBox) {
-    logBox.innerHTML = `❌ 엔진 로딩 실패<br>
-<pre style="white-space:pre-wrap; color:#f88;">${String(e?.message || e)}</pre>
-<div style="margin-top:8px; color:#ddd;">
-  ✅ 체크리스트:<br>
-  1) repo에 <b>engine/game.js</b>가 실제로 존재/커밋되어 있는지<br>
-  2) 폴더명/파일명 대소문자(ENGINE vs engine 등)가 정확히 같은지<br>
-  3) GitHub Pages가 최신 커밋을 배포했는지(새로고침/강력 새로고침)
-</div>`;
-  }
-  throw e;
+  rolesApi = null;
+}
+let relationApi = null;
+try {
+  relationApi = await import("./engine/relation.js");
+} catch (e) {
+  relationApi = null;
 }
 
 // -------------------------------
@@ -65,16 +50,16 @@ const logBox = $("log");
 const logSaveBtn = $("logSaveBtn");
 
 // 게임 설정(있으면 사용)
-const setEngineer = $("setEngineer");
-const setDoctor = $("setDoctor");
-const setGuardian = $("setGuardian");
-const setGuardDuty = $("setGuardDuty");
-const setAC = $("setAC");
-const setBug = $("setBug");
+const setEngineer = pick("setEngineer", "enableEngineer");
+const setDoctor = pick("setDoctor", "enableDoctor");
+const setGuardian = pick("setGuardian", "enableGuardian");
+const setGuardDuty = pick("setGuardDuty", "enableGuardDuty");
+const setAC = pick("setAC", "enableAC");
+const setBug = pick("setBug", "enableBug");
 const gnosiaCountEl = $("gnosiaCount");
 
 // 관계도(있으면 사용)
-const relationsView = $("relationsView");
+const relationsView = pick("relationsView", "relationBox");
 
 // -------------------------------
 // UI 정의
@@ -223,6 +208,9 @@ function renderCommandChecklist() {
 
   const defs = Array.isArray(COMMAND_DEFS) ? COMMAND_DEFS : [];
   for (const def of defs) {
+    // needsCheck=true인 것만 체크 UI에 노출(원하면 조건 제거 가능)
+    if (def && def.needsCheck === false) continue;
+
     const item = document.createElement("label");
     item.className = "cmd-item";
 
