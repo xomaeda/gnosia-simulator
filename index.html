@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
 
+  <!-- ✅ GitHub Pages(서브디렉토리)에서 상대경로가 깨지는 문제 방지 -->
+  <!--    repo명이 gnosia-simulator 이므로 base를 이걸로 고정 -->
+  <base href="/gnosia-simulator/">
+
   <!-- 카페24 고운밤 (Cafe24Oneprettynight) 웹폰트: Noonnu CDN -->
   <style>
     @font-face {
@@ -15,7 +19,8 @@
     }
   </style>
 
-  <link rel="stylesheet" href="./style.css" />
+  <!-- base 기준으로 로드됨: /gnosia-simulator/style.css -->
+  <link rel="stylesheet" href="style.css" />
 
   <!-- ✅ style.css가 덮어써도 폰트/표시가 무조건 적용되도록 HTML에서 강제 오버라이드 -->
   <style>
@@ -218,6 +223,7 @@
     </section>
   </main>
 
-  <script type="module" src="./main.js"></script>
+  <!-- base 기준으로 로드됨: /gnosia-simulator/main.js -->
+  <script type="module" src="main.js"></script>
 </body>
 </html>
