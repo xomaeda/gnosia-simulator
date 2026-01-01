@@ -1486,9 +1486,12 @@ export class Game {
   // Here we return chain[0].actorId to match "X의 말".
   // NOTE: It is used in printChainLogs above.
   // eslint-disable-next-line no-unused-vars
-  function ctxTargetFromChain(chain) {
+  // helper to get main target from chain
+  // (we stored ctx.targetId, but logs function receives only chain)
+  ctxTargetFromChain(chain) {
     return chain?.[0]?.actorId ?? null;
   }
+
 
   // ---------------- Vote / Cold sleep ----------------
   resolveVoteAndColdSleep() {
