@@ -283,8 +283,8 @@ function getSelectedCommands() {
 // 캐릭터 생성/수정
 // -------------------------------
 function validateName(name) {
-  if (!name || !name.trim()) return "이름을 입력해줘.";
-  if (name.trim().length > 20) return "이름이 너무 길어. (20자 이하)";
+  if (!name || !name.trim()) return "이름을 입력하세요.";
+  if (name.trim().length > 20) return "이름이 너무 깁니다. (20자 이하)";
   return null;
 }
 
