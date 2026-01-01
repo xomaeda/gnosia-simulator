@@ -925,61 +925,15 @@ export function getAllCommandIds() {
 }
 
 // =========================
-// export helper (FIX for main.js imports)
-// =========================
+// ----------------------------------------------------------------------------
+// Compatibility exports for main.js / game.js
+// ----------------------------------------------------------------------------
 
-// 1) main.js가 COMMAND_DEFS를 import하는데 없으면 터지니까,
-//    commands.js 내부에 정의된 커맨드 목록을 최대한 찾아서 COMMAND_DEFS 형태로 만들어 export한다.
+// main.js에서 COMMAND_DEFS를 import하는 경우를 위해
+// 실제로 쓰는 메타 테이블(COMMAND_META)을 그대로 노출한다.
+export const COMMAND_DEFS = COMMAND_META;
 
-// 이미 COMMAND_DEFS가 위에서 정의돼 있으면 그대로 쓰고,
-// 없으면 아래에서 생성한다.
-export const COMMAND_DEFS = (typeof globalThis !== "undefined" && globalThis.COMMAND_DEFS)
-  ? globalThis.COMMAND_DEFS
-  : (() => {
-      // 1) 가장 흔한 패턴: COMMAND라는 enum/object가 있음
-      let ids = [];
-      try {
-        if (typeof COMMAND === "object" && COMMAND) {
-          if (COMMAND instanceof Map) ids = Array.from(COMMAND.keys());
-          else ids = Object.values(COMMAND);
-        }
-      } catch (e) {}
-
-      // 2) ids가 비어있으면, defs 같은 배열/맵이 있는지 추측
-      // (프로젝트마다 이름이 다를 수 있어 방어적으로 처리)
-      const tryDefs =
-        (typeof COMMANDS !== "undefined" && COMMANDS) ||
-        (typeof COMMAND_DEF !== "undefined" && COMMAND_DEF) ||
-        (typeof COMMAND_DEFINITIONS !== "undefined" && COMMAND_DEFINITIONS);
-
-      // defs가 Map이면
-      if (!ids.length && tryDefs instanceof Map) ids = Array.from(tryDefs.keys());
-
-      // defs가 배열이면 id 필드에서 추출
-      if (!ids.length && Array.isArray(tryDefs)) {
-        ids = tryDefs.map(d => d?.id).filter(Boolean);
-      }
-
-      // ids로 COMMAND_DEFS 객체 생성
-      const out = {};
-      for (const id of ids) {
-        out[id] = out[id] || {
-          id,
-          // main.js가 label/req 같은 걸 쓸 수 있어서 기본값 제공
-          label: String(id),
-          // 필요 스테이터스 조건(없으면 빈 객체)
-          req: {},
-          // 설명(없으면 빈 문자열)
-          desc: "",
-          // 부속커맨드/연계 여부 같은 옵션 자리
-          meta: {},
-        };
-      }
-      return out;
-    })();
-
-// 3) game.js가 찾던 getAllCommandIds도 같이 제공 (없으면 터짐)
+// game.js나 기타 코드에서 전체 커맨드 id 목록이 필요할 때 사용
 export function getAllCommandIds() {
-  return Object.keys(COMMAND_DEFS);
+  return Object.keys(COMMAND_META);
 }
-
