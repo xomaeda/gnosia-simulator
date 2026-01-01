@@ -53,16 +53,22 @@ const charList = $("charList");
 const logBox = $("log");
 
 // (있으면) 게임 설정 UI
-const enableEngineerEl = $("enableEngineer");
-const enableDoctorEl = $("enableDoctor");
-const enableGuardianEl = $("enableGuardian");
-const enableGuardDutyEl = $("enableGuardDuty");
-const enableACEl = $("enableAC");
-const enableBugEl = $("enableBug");
-const gnosiaCountEl = $("gnosiaCount");
+
+const pick = (...ids) => ids.map($).find((el) => !!el) || null;
+
+// HTML에서 setEngineer를 쓰든 enableEngineer를 쓰든 둘 다 대응
+const enableEngineerEl  = pick("setEngineer",  "enableEngineer");
+const enableDoctorEl    = pick("setDoctor",    "enableDoctor");
+const enableGuardianEl  = pick("setGuardian",  "enableGuardian");
+const enableGuardDutyEl = pick("setGuardDuty", "enableGuardDuty");
+const enableACEl        = pick("setAC",        "enableAC");
+const enableBugEl       = pick("setBug",       "enableBug");
+
+const gnosiaCountEl     = pick("gnosiaCount");
 
 // (있으면) 관계도 컨테이너
-const relationBox = $("relationBox");
+const relationBox       = pick("relationsView", "relationBox");
+
 
 // -------------------------------
 // 입력 필드 정의 (기획서 기준)
