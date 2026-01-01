@@ -1,7 +1,11 @@
-// ✅ GitHub Pages에서 경로/캐시 문제를 피하기 위한 안전 로더
-const url = (p) => new URL(p, import.meta.url).href;
+// main.js (루트) — HTML: <script type="module" src="./main.js"></script>
+
+// ✅ GitHub Pages 캐시/경로 문제를 피하기 위한 안전 로더 + 버전 쿼리
+const VERSION = "2026-01-01-1";
+const url = (p) => new URL(p, import.meta.url).href + `?v=${VERSION}`;
 
 let GameEngine, COMMAND_DEFS, cmdStatEligible;
+
 let rolesApi = null;
 let relationApi = null;
 
@@ -17,7 +21,13 @@ try {
   const logBox = document.getElementById("log");
   if (logBox) {
     logBox.innerHTML = `❌ 엔진 로딩 실패<br>
-<pre style="white-space:pre-wrap; color:#f88;">${String(e?.message || e)}</pre>`;
+<pre style="white-space:pre-wrap; color:#f88;">${String(e?.message || e)}</pre>
+<div style="margin-top:8px; color:#ddd;">
+  ✅ 체크리스트:<br>
+  1) repo에 <b>engine/game.js</b>가 실제로 존재/커밋되어 있는지<br>
+  2) 폴더명/파일명 대소문자(ENGINE vs engine 등)가 정확히 같은지<br>
+  3) GitHub Pages가 최신 커밋을 배포했는지(새로고침/강력 새로고침)
+</div>`;
   }
   throw e;
 }
@@ -145,7 +155,6 @@ function clampNumberInput(input, min, max) {
 
 function renderStatsInputs() {
   if (!statsGrid) return;
-  // ✅ 혹시 “호환용”으로 2개 컨테이너가 존재할 수 있으니 둘 다 비움
   const a = $("statsGrid"); if (a) a.innerHTML = "";
   const b = $("statusGrid"); if (b) b.innerHTML = "";
 
@@ -212,7 +221,6 @@ function renderCommandChecklist() {
   const a = $("commandList"); if (a) a.innerHTML = "";
   const b = $("commandsGrid"); if (b) b.innerHTML = "";
 
-  // COMMAND_DEFS가 배열이 아니면 여기서 터져서 UI가 안 뜨는 경우가 많음
   const defs = Array.isArray(COMMAND_DEFS) ? COMMAND_DEFS : [];
   for (const def of defs) {
     const item = document.createElement("label");
@@ -235,7 +243,7 @@ function renderCommandChecklist() {
   refreshCommandDisableByCurrentStats();
 }
 
-// 현재 입력중인 스탯으로 “스탯상 불가능 커맨드” 체크 불가 처리
+// ✅ 현재 입력중인 “스탯”으로 스탯 미달 커맨드는 체크 자체를 막음
 function refreshCommandDisableByCurrentStats() {
   if (!commandGrid) return;
 
@@ -388,7 +396,6 @@ function startEdit(id) {
     if (el) el.value = String(c.personality?.[f.key] ?? 0);
   }
 
-  // 체크박스: 스탯 기준 불가능은 강제 해제/비활성
   refreshCommandDisableByCurrentStats();
   const enabled = new Set(c.enabledCommands ?? []);
   const checks = commandGrid?.querySelectorAll("input[type=checkbox][data-cmd]") ?? [];
@@ -413,28 +420,23 @@ function stopEdit() {
 function doSave() {
   const data = { version: 1, characters };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  const u = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
+  a.href = u;
   a.download = "gnosia_characters.json";
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(u);
   log("✅ 캐릭터 목록 저장 완료");
 }
 
 async function doLoad() {
   const file = loadFile?.files?.[0];
-  if (!file) {
-    log("❌ 로드할 파일을 선택하세요.");
-    return;
-  }
+  if (!file) return log("❌ 로드할 파일을 선택하세요.");
+
   const text = await file.text();
   const obj = JSON.parse(text);
 
-  if (!obj || !Array.isArray(obj.characters)) {
-    log("❌ 파일 형식이 올바르지 않습니다.");
-    return;
-  }
+  if (!obj || !Array.isArray(obj.characters)) return log("❌ 파일 형식이 올바르지 않습니다.");
 
   characters = obj.characters.map((c) => ({
     id: c.id ?? uuid(),
@@ -531,21 +533,16 @@ function bindEvents() {
   logSaveBtn?.addEventListener("click", () => {
     const text = Array.from(logBox?.children ?? []).map((d) => d.textContent).join("\n");
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    const u = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = u;
     a.download = "gnosia_log.txt";
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(u);
   });
 
   runBtn?.addEventListener("click", () => {
     if (characters.length < 5) return log("❌ 캐릭터가 5명 이상이어야 실행할 수 있습니다.");
-
-    if (!GameEngine) {
-      log("❌ 엔진(game.js)을 불러오지 못했습니다. (GitHub Pages 경로/대소문자 확인)");
-      return;
-    }
 
     if (!engine) {
       try {
@@ -584,7 +581,6 @@ function bindEvents() {
 function init() {
   clearLog();
 
-  // 필수 DOM 존재 확인(없으면 UI가 안 뜸)
   const missing = [];
   if (!statsGrid) missing.push("statsGrid/statusGrid");
   if (!persGrid) missing.push("persGrid/personalityGrid");
@@ -597,7 +593,7 @@ function init() {
   if (missing.length) {
     console.error("❌ Missing DOM:", missing);
     log("❌ UI 생성 실패: HTML id가 맞는지 확인 필요 → " + missing.join(", "));
-    return; // 여기서 멈추면 원인이 명확해짐
+    return;
   }
 
   renderStatsInputs();
