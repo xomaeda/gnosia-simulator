@@ -6,7 +6,6 @@
   <title>그노시아 시뮬레이터</title>
 
   <!-- 카페24 고운밤 (Cafe24Oneprettynight) 웹폰트: Noonnu CDN -->
-  <!-- 출처: Noonnu '카페24 고운밤' (Cafe24 Gowoonbam / Oneprettynight) -->
   <style>
     @font-face {
       font-family: 'Cafe24Oneprettynight';
@@ -17,7 +16,36 @@
   </style>
 
   <link rel="stylesheet" href="./style.css" />
+
+  <!-- ✅ style.css가 덮어써도 폰트/표시가 무조건 적용되도록 HTML에서 강제 오버라이드 -->
+  <style>
+    body, input, select, button, textarea {
+      font-family: 'Cafe24Oneprettynight', system-ui, sans-serif !important;
+    }
+
+    /* ✅ “안 보인다” 이슈의 흔한 원인(overflow/height 0/opacity 0 등)을 방지 */
+    #statsGrid, #statusGrid,
+    #persGrid, #personalityGrid,
+    #commandList, #commandsGrid {
+      display: grid;
+      visibility: visible !important;
+      opacity: 1 !important;
+      max-height: none !important;
+      height: auto !important;
+      overflow: visible !important;
+      min-height: 10px;
+    }
+
+    /* ✅ 커맨드가 ‘…’으로 줄어드는 문제 방지 */
+    .cmd-grid, .cmd-grid * {
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      word-break: keep-all;
+    }
+  </style>
 </head>
+
 <body>
   <header class="topbar">
     <div class="brand">
@@ -79,8 +107,10 @@
             <h3>스테이터스 (0~50)</h3>
             <div class="mini">소수 1자리 가능</div>
           </div>
-          <!-- main.js가 여기 채움 -->
+
+          <!-- ✅ main.js가 어느 id를 찾든 채워지도록 “호환용 컨테이너 2개” 제공 -->
           <div id="statsGrid" class="kv-grid"></div>
+          <div id="statusGrid" class="kv-grid"></div>
         </div>
 
         <div class="box">
@@ -88,8 +118,10 @@
             <h3>성격 (0.00~1.00)</h3>
             <div class="mini">소수 2자리 권장</div>
           </div>
-          <!-- main.js가 여기 채움 -->
+
+          <!-- ✅ 호환용 컨테이너 2개 -->
           <div id="persGrid" class="kv-grid"></div>
+          <div id="personalityGrid" class="kv-grid"></div>
         </div>
       </div>
 
@@ -98,12 +130,14 @@
           <h3>사용 가능 커맨드 체크</h3>
           <span class="mini">체크한 커맨드만 캐릭터가 사용</span>
         </summary>
+
+        <!-- ✅ 호환용 컨테이너 2개 -->
         <div id="commandList" class="cmd-grid"></div>
+        <div id="commandsGrid" class="cmd-grid"></div>
       </details>
 
       <div class="row-inline">
         <button id="addChar" class="btn primary">캐릭터 추가</button>
-
         <button id="applyEditBtn" class="btn" disabled>수정 적용</button>
         <button id="cancelEditBtn" class="btn" disabled>수정 취소</button>
       </div>
@@ -167,7 +201,6 @@
         <div class="hint">신뢰/우호 시각화</div>
       </div>
 
-      <!-- 관계도는 엔진/메인에서 그려주면 됨 -->
       <div class="relations">
         <div class="mini">※ 관계도(시각화)는 다음 단계에서 캔버스/그리드로 연결</div>
         <div id="relationsView" class="relations-box">
@@ -186,7 +219,6 @@
     </section>
   </main>
 
-  <!-- ★ 중요: main.js는 모듈로 실행 (import 쓰면 필수) -->
   <script type="module" src="./main.js"></script>
 </body>
 </html>
