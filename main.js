@@ -1,535 +1,489 @@
-// main.js (루트) — index.html: <script type="module" src="./main.js"></script>
-window.__MAIN_LOADED__ = true;
+// main.js (루트)
+// index.html: <script type="module" src="./main.js"></script>
 
-window.addEventListener("error", (e) => {
-  console.error("GLOBAL ERROR:", e.error || e.message, e);
-});
-window.addEventListener("unhandledrejection", (e) => {
-  console.error("UNHANDLED REJECTION:", e.reason);
-});
-
-import { GameEngine } from "./engine/game.js";
-import { COMMAND_DEFS, statEligible as cmdStatEligible } from "./engine/commands.js";
-
-// -------------------------------
-// DOM helpers
-// -------------------------------
 const $ = (id) => document.getElementById(id);
 const pick = (...ids) => ids.map($).find(Boolean) || null;
 
-function elAssert(el, name) {
-  if (!el) console.warn(`[main.js] missing element: ${name}`);
-  return el;
-}
+// ---- DOM ----
+const elName = $("name");
+const elGender = $("gender");
+const elAge = $("age");
 
-// ---- Containers (호환 대응) ----
-const statsGrid = elAssert(pick("statsGrid", "statusGrid"), "statsGrid/statusGrid");
-const persGrid = elAssert(pick("persGrid", "personalityGrid"), "persGrid/personalityGrid");
-const commandGrid = elAssert(pick("commandList", "commandsGrid"), "commandList/commandsGrid");
+const statsGrid = pick("statsGrid", "statusGrid");
+const persGrid = pick("persGrid", "personalityGrid");
+const commandGrid = pick("commandList", "commandsGrid");
 
-const charList = elAssert(pick("charList"), "charList");
-const logBox = elAssert(pick("log"), "log");
+const addBtn = $("addChar");
+const runBtn = $("runBtn");
+const logSaveBtn = $("logSaveBtn");
 
-const runBtn = elAssert(pick("runBtn"), "runBtn");
-const addBtn = elAssert(pick("addChar"), "addChar");
+const saveBtn = $("saveBtn");
+const loadBtn = $("loadBtn");
+const loadFile = $("loadFile");
 
-const applyEditBtn = pick("applyEditBtn");
-const cancelEditBtn = pick("cancelEditBtn");
-const editBanner = pick("editBanner");
+const applyEditBtn = $("applyEditBtn");
+const cancelEditBtn = $("cancelEditBtn");
+const editBanner = $("editBanner");
 
-const saveBtn = pick("saveBtn");
-const loadBtn = pick("loadBtn");
-const loadFile = pick("loadFile");
+const charList = $("charList");
+const logBox = $("log");
 
-// 입력들
-const elName = pick("name");
-const elGender = pick("gender");
-const elAge = pick("age");
+// 게임 설정(체크박스 id는 네 index.html 기준)
+const setEngineer = $("setEngineer");
+const setDoctor = $("setDoctor");
+const setGuardian = $("setGuardian");
+const setGuardDuty = $("setGuardDuty");
+const setAC = $("setAC");
+const setBug = $("setBug");
+const gnosiaCountEl = $("gnosiaCount");
 
-// 게임 설정(HTML마다 id가 달라서 pick으로 흡수)
-const setEngineerEl = pick("setEngineer", "enableEngineer");
-const setDoctorEl = pick("setDoctor", "enableDoctor");
-const setGuardianEl = pick("setGuardian", "enableGuardian");
-const setGuardDutyEl = pick("setGuardDuty", "enableGuardDuty", "enableGuardDutyEl");
-const setACEl = pick("setAC", "enableAC");
-const setBugEl = pick("setBug", "enableBug");
-const gnosiaCountEl = pick("gnosiaCount");
+// 관계도
+const relationsView = $("relationsView");
 
-// 관계도 컨테이너(있으면)
-const relationsView = pick("relationsView", "relationBox", "relationsBox");
-
-// -------------------------------
-// Constants: 스탯/성격 키(HTML 라벨용)
-// -------------------------------
-const STAT_FIELDS = [
-  { key: "charisma", label: "카리스마", min: 0, max: 50, step: 0.1 },
-  { key: "logic", label: "논리력", min: 0, max: 50, step: 0.1 },
-  { key: "acting", label: "연기력", min: 0, max: 50, step: 0.1 },
-  { key: "charm", label: "귀염성", min: 0, max: 50, step: 0.1 },
-  { key: "stealth", label: "스텔스", min: 0, max: 50, step: 0.1 },
-  { key: "intuition", label: "직감", min: 0, max: 50, step: 0.1 },
-];
-
-const PERS_FIELDS = [
-  { key: "cheer", label: "쾌활함", min: 0, max: 1, step: 0.01 },
-  { key: "social", label: "사회성", min: 0, max: 1, step: 0.01 },
-  { key: "logical", label: "논리성향", min: 0, max: 1, step: 0.01 },
-  { key: "kindness", label: "상냥함", min: 0, max: 1, step: 0.01 },
-  { key: "desire", label: "욕망", min: 0, max: 1, step: 0.01 },
-  { key: "courage", label: "용기", min: 0, max: 1, step: 0.01 },
-];
-
-// -------------------------------
-// State
-// -------------------------------
-let characters = [];
-let editingId = null; // 수정중인 캐릭터 id
-let engine = null;
-
-const cmdCheckboxById = new Map(); // cmdId -> checkbox
-const statInputByKey = new Map();  // key -> input
-const persInputByKey = new Map();  // key -> input
-
-// -------------------------------
-// Logging UI
-// -------------------------------
-function log(msg) {
-  if (!logBox) return console.log(msg);
+// ---- 로그 ----
+function logLine(msg) {
+  if (!logBox) return;
   const div = document.createElement("div");
   div.textContent = msg;
   logBox.appendChild(div);
   logBox.scrollTop = logBox.scrollHeight;
 }
-
-function clearLog() {
-  if (logBox) logBox.innerHTML = "";
+function logError(msg) {
+  logLine(`❌ ${msg}`);
+}
+function logOk(msg) {
+  logLine(`✅ ${msg}`);
 }
 
-// -------------------------------
-// UI builders
-// -------------------------------
-function makeNumberField({ key, label, min, max, step }, group = "stat") {
+// ---- 필드 정의 ----
+const STAT_FIELDS = [
+  ["charisma", "카리스마", { min: 0, max: 50, step: 0.1 }],
+  ["logic", "논리력", { min: 0, max: 50, step: 0.1 }],
+  ["acting", "연기력", { min: 0, max: 50, step: 0.1 }],
+  ["charm", "귀염성", { min: 0, max: 50, step: 0.1 }],
+  ["stealth", "스텔스", { min: 0, max: 50, step: 0.1 }],
+  ["intuition", "직감", { min: 0, max: 50, step: 0.1 }],
+];
+
+const PERS_FIELDS = [
+  ["cheer", "쾌활함", { min: 0, max: 1, step: 0.01 }],
+  ["social", "사회성", { min: 0, max: 1, step: 0.01 }],
+  ["logical", "논리성향", { min: 0, max: 1, step: 0.01 }],
+  ["kindness", "상냥함", { min: 0, max: 1, step: 0.01 }],
+  ["desire", "욕망", { min: 0, max: 1, step: 0.01 }],
+  ["courage", "용기", { min: 0, max: 1, step: 0.01 }],
+];
+
+// ---- 상태 ----
+let COMMAND_DEFS = null;
+let cmdStatEligible = null;
+let GameEngine = null;
+
+let engine = null;
+let chars = []; // { id, name, gender, age, stats, personality, enabledCommands:Set, alive:true ... }
+let editingId = null;
+
+// ---- URL 기반 import (GitHub Pages 경로 꼬임 방지 핵심) ----
+const urlCommands = new URL("./engine/commands.js", import.meta.url).href;
+const urlGame = new URL("./engine/game.js", import.meta.url).href;
+// roles/relation은 옵션
+const urlRoles = new URL("./engine/roles.js", import.meta.url).href;
+const urlRelation = new URL("./engine/relation.js", import.meta.url).href;
+
+async function loadModules() {
+  // commands.js 먼저 (UI 렌더에 필수)
+  try {
+    const modCmd = await import(urlCommands);
+    COMMAND_DEFS = modCmd.COMMAND_DEFS;
+    cmdStatEligible = modCmd.statEligible;
+    if (!Array.isArray(COMMAND_DEFS)) throw new Error("COMMAND_DEFS가 배열이 아님");
+    if (typeof cmdStatEligible !== "function") throw new Error("statEligible 함수가 없음");
+    logOk("commands.js 로드 성공");
+  } catch (e) {
+    logError(`commands.js 로드 실패: ${e?.message || e}`);
+    throw e;
+  }
+
+  // game.js는 실행 버튼에 필요(없어도 캐릭터 생성 UI는 보여줘야 함)
+  try {
+    const modGame = await import(urlGame);
+    GameEngine = modGame.GameEngine;
+    if (typeof GameEngine !== "function") throw new Error("GameEngine export가 없음");
+    logOk("game.js 로드 성공");
+  } catch (e) {
+    logError(
+      `엔진(game.js)을 불러오지 못했습니다. (GitHub Pages 경로/대소문자 확인)\n` +
+      `- ${e?.message || e}`
+    );
+    // 엔진이 없어도 캐릭터 생성은 가능하게 둠
+    GameEngine = null;
+  }
+
+  // roles / relation은 있으면만
+  try { await import(urlRoles); } catch {}
+  try { await import(urlRelation); } catch {}
+}
+
+// ---- UI 생성 ----
+function makeNumberField(id, label, opts) {
   const wrap = document.createElement("label");
   wrap.className = "kv";
 
-  const lab = document.createElement("span");
-  lab.className = "k";
-  lab.textContent = label;
+  const span = document.createElement("span");
+  span.className = "k";
+  span.textContent = label;
 
   const input = document.createElement("input");
   input.className = "input";
   input.type = "number";
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
-  input.value = group === "stat" ? "0" : "0.00";
+  input.id = id;
+  input.min = opts.min;
+  input.max = opts.max;
+  input.step = opts.step;
+  input.value = String(opts.min ?? 0);
 
-  wrap.appendChild(lab);
+  wrap.appendChild(span);
   wrap.appendChild(input);
   return { wrap, input };
 }
 
-function renderStatsAndPersonality() {
-  if (!statsGrid || !persGrid) return;
+const statInputs = new Map();
+const persInputs = new Map();
 
+function renderStats() {
+  if (!statsGrid) return;
   statsGrid.innerHTML = "";
-  persGrid.innerHTML = "";
-  statInputByKey.clear();
-  persInputByKey.clear();
+  statInputs.clear();
 
-  for (const f of STAT_FIELDS) {
-    const { wrap, input } = makeNumberField(f, "stat");
-    statsGrid.appendChild(wrap);
-    statInputByKey.set(f.key, input);
-
+  for (const [key, label, opts] of STAT_FIELDS) {
+    const { wrap, input } = makeNumberField(`st_${key}`, label, opts);
     input.addEventListener("input", () => {
-      // 스탯 바뀌면 커맨드 eligibility 갱신
-      updateCommandEligibility();
+      // 커맨드 체크박스 disabled 상태 갱신
+      refreshCommandDisabledByStats();
     });
+    statsGrid.appendChild(wrap);
+    statInputs.set(key, input);
   }
+}
 
-  for (const f of PERS_FIELDS) {
-    const { wrap, input } = makeNumberField(f, "pers");
+function renderPersonality() {
+  if (!persGrid) return;
+  persGrid.innerHTML = "";
+  persInputs.clear();
+
+  for (const [key, label, opts] of PERS_FIELDS) {
+    const { wrap, input } = makeNumberField(`ps_${key}`, label, opts);
     persGrid.appendChild(wrap);
-    persInputByKey.set(f.key, input);
+    persInputs.set(key, input);
   }
 }
 
-function renderCommandChecklist() {
-  if (!commandGrid) return;
-
-  commandGrid.innerHTML = "";
-  cmdCheckboxById.clear();
-
-  // COMMAND_DEFS는 배열이어야 함(너가 고친 commands.js 기준 OK)
-  for (const def of COMMAND_DEFS) {
-    const cmdId = def?.id;
-    const labelText = def?.label || String(cmdId);
-    if (!cmdId) continue;
-
-    const label = document.createElement("label");
-    label.className = "cmd";
-
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = true; // 기본: 전부 사용으로 시작(원하면 false로 바꿔도 됨)
-
-    const txt = document.createElement("span");
-    txt.textContent = labelText;
-
-    label.appendChild(cb);
-    label.appendChild(txt);
-
-    commandGrid.appendChild(label);
-    cmdCheckboxById.set(cmdId, cb);
-
-    cb.addEventListener("change", () => {
-      // 체크 바뀌어도 eligibility 다시 확인(특히 disabled 풀렸다가 다시 막힐 때)
-      updateCommandEligibility();
-    });
-  }
-
-  updateCommandEligibility();
-}
-
-function getCurrentStatsFromForm() {
+function getCurrentStats() {
   const stats = {};
-  for (const f of STAT_FIELDS) {
-    const el = statInputByKey.get(f.key);
-    const v = Number(el?.value);
-    stats[f.key] = Number.isFinite(v) ? v : 0;
+  for (const [k, input] of statInputs.entries()) {
+    const v = Number(input.value);
+    stats[k] = Number.isFinite(v) ? v : 0;
   }
   return stats;
 }
-
-function getCurrentPersonalityFromForm() {
+function getCurrentPersonality() {
   const p = {};
-  for (const f of PERS_FIELDS) {
-    const el = persInputByKey.get(f.key);
-    const v = Number(el?.value);
-    p[f.key] = Number.isFinite(v) ? v : 0;
+  for (const [k, input] of persInputs.entries()) {
+    const v = Number(input.value);
+    p[k] = Number.isFinite(v) ? v : 0;
   }
   return p;
 }
 
-function updateCommandEligibility() {
-  // “캐릭터 스탯상 사용 불가 커맨드”는 체크도 못하게: disabled 처리
-  const tempChar = { stats: getCurrentStatsFromForm() };
+let commandCheckboxes = []; // {id, el}
 
-  for (const [cmdId, cb] of cmdCheckboxById.entries()) {
-    let ok = true;
-    try {
-      ok = cmdStatEligible(tempChar, cmdId);
-    } catch (e) {
-      console.warn("[main.js] cmdStatEligible failed:", cmdId, e);
-      ok = true; // 에러면 막지 말고 보여주기
-    }
+function renderCommands() {
+  if (!commandGrid) return;
+  commandGrid.innerHTML = "";
+  commandCheckboxes = [];
 
-    cb.disabled = !ok;
+  // commands.js 못 불러오면 여기서 끝
+  if (!Array.isArray(COMMAND_DEFS)) {
+    const div = document.createElement("div");
+    div.textContent = "커맨드 목록을 불러오지 못했습니다 (commands.js 확인)";
+    commandGrid.appendChild(div);
+    return;
+  }
 
-    // 이미 체크돼 있었는데 스탯 바뀌어서 불가가 되면 자동 해제
-    if (!ok && cb.checked) cb.checked = false;
+  for (const def of COMMAND_DEFS) {
+    // def: {id,label,category,public,needsCheck,...} 형태를 가정(네 commands.js 기준)
+    const id = def.id ?? def.label;
+    const label = def.label ?? String(id);
 
-    // 시각적 힌트(있으면)
-    const row = cb.parentElement;
-    if (row) row.style.opacity = ok ? "1" : "0.45";
+    // public=false면 UI에 굳이 안 보여도 된다는 네 요구가 있었지만,
+    // 지금은 전부 보여주는 편이 디버깅에 유리해서 그대로 표시.
+    const row = document.createElement("label");
+    row.className = "cmd-item";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.cmdId = id;
+
+    const text = document.createElement("span");
+    text.textContent = label;
+
+    row.appendChild(cb);
+    row.appendChild(text);
+    commandGrid.appendChild(row);
+
+    commandCheckboxes.push({ id, el: cb });
+  }
+
+  refreshCommandDisabledByStats();
+}
+
+// ✅ 핵심: “현재 입력 스탯” 기준으로 사용 불가 커맨드는 체크 자체를 못 하게 disabled
+function refreshCommandDisabledByStats() {
+  if (!cmdStatEligible) return;
+  const stats = getCurrentStats();
+  const fakeChar = { stats };
+
+  for (const { id, el } of commandCheckboxes) {
+    const ok = cmdStatEligible(fakeChar, id);
+    el.disabled = !ok;
+
+    // disabled로 바뀌는 순간 체크되어 있으면 해제(원하는 동작)
+    if (!ok && el.checked) el.checked = false;
   }
 }
 
-// -------------------------------
-// Character CRUD
-// -------------------------------
-function readCharForm() {
-  const name = (elName?.value || "").trim();
-  const gender = elGender?.value || "남성";
-  const age = Number(elAge?.value);
-
-  if (!name) return { error: "이름이 비어있습니다." };
-  if (!Number.isFinite(age) || age < 0) return { error: "식별연령을 0 이상 숫자로 넣어주세요." };
-
-  const stats = getCurrentStatsFromForm();
-  const personality = getCurrentPersonalityFromForm();
-
-  const enabledCommands = [];
-  for (const [cmdId, cb] of cmdCheckboxById.entries()) {
-    if (cb.checked && !cb.disabled) enabledCommands.push(cmdId);
-  }
-
-  return {
-    value: {
-      id: editingId || crypto.randomUUID?.() || String(Date.now() + Math.random()),
-      name,
-      gender,
-      age,
-      stats,
-      personality,
-      enabledCommands,
-      alive: true,
-    },
-  };
-}
-
-function resetForm() {
-  if (elName) elName.value = "";
-  if (elAge) elAge.value = "";
-
-  for (const f of STAT_FIELDS) {
-    const el = statInputByKey.get(f.key);
-    if (el) el.value = "0";
-  }
-  for (const f of PERS_FIELDS) {
-    const el = persInputByKey.get(f.key);
-    if (el) el.value = "0.00";
-  }
-
-  // 커맨드 체크 기본값: true로 되돌림(단, 스탯상 불가인 건 자동으로 disabled+해제됨)
-  for (const cb of cmdCheckboxById.values()) cb.checked = true;
-
-  editingId = null;
-  if (editBanner) editBanner.style.display = "none";
-  if (applyEditBtn) applyEditBtn.disabled = true;
-  if (cancelEditBtn) cancelEditBtn.disabled = true;
-
-  updateCommandEligibility();
-}
-
+// ---- 캐릭터 목록/저장 ----
 function renderCharList() {
   if (!charList) return;
   charList.innerHTML = "";
 
-  for (const c of characters) {
+  if (!chars.length) {
+    const empty = document.createElement("div");
+    empty.className = "mini";
+    empty.textContent = "아직 캐릭터가 없습니다.";
+    charList.appendChild(empty);
+    return;
+  }
+
+  for (const c of chars) {
     const row = document.createElement("div");
     row.className = "row";
-    row.style.display = "flex";
-    row.style.justifyContent = "space-between";
-    row.style.gap = "8px";
-    row.style.padding = "6px 0";
-    row.style.borderBottom = "1px solid rgba(255,255,255,0.06)";
 
     const left = document.createElement("div");
+    left.className = "grow";
     left.textContent = `${c.name} (${c.gender}, ${c.age})`;
 
-    const btns = document.createElement("div");
-    btns.style.display = "flex";
-    btns.style.gap = "6px";
+    const btnEdit = document.createElement("button");
+    btnEdit.className = "btn";
+    btnEdit.textContent = "수정";
+    btnEdit.onclick = () => enterEditMode(c.id);
 
-    const edit = document.createElement("button");
-    edit.className = "btn";
-    edit.textContent = "수정";
-    edit.addEventListener("click", () => startEdit(c.id));
-
-    const del = document.createElement("button");
-    del.className = "btn";
-    del.textContent = "삭제";
-    del.addEventListener("click", () => {
-      characters = characters.filter((x) => x.id !== c.id);
+    const btnDel = document.createElement("button");
+    btnDel.className = "btn";
+    btnDel.textContent = "삭제";
+    btnDel.onclick = () => {
+      chars = chars.filter((x) => x.id !== c.id);
+      if (editingId === c.id) exitEditMode();
       renderCharList();
       updateRunButtonState();
-    });
-
-    btns.appendChild(edit);
-    btns.appendChild(del);
+    };
 
     row.appendChild(left);
-    row.appendChild(btns);
+    row.appendChild(btnEdit);
+    row.appendChild(btnDel);
     charList.appendChild(row);
   }
 }
 
-function startEdit(id) {
-  const c = characters.find((x) => x.id === id);
+function enterEditMode(id) {
+  const c = chars.find((x) => x.id === id);
   if (!c) return;
 
-  editingId = c.id;
+  editingId = id;
   if (editBanner) editBanner.style.display = "";
   if (applyEditBtn) applyEditBtn.disabled = false;
   if (cancelEditBtn) cancelEditBtn.disabled = false;
 
-  if (elName) elName.value = c.name || "";
-  if (elGender) elGender.value = c.gender || "남성";
-  if (elAge) elAge.value = String(c.age ?? 0);
+  elName.value = c.name;
+  elGender.value = c.gender;
+  elAge.value = String(c.age ?? 0);
 
-  for (const f of STAT_FIELDS) {
-    const el = statInputByKey.get(f.key);
-    if (el) el.value = String(c.stats?.[f.key] ?? 0);
+  for (const [k, input] of statInputs.entries()) input.value = String(c.stats?.[k] ?? 0);
+  for (const [k, input] of persInputs.entries()) input.value = String(c.personality?.[k] ?? 0);
+
+  // 체크박스 반영(스탯 기준 disabled 먼저 갱신 후)
+  refreshCommandDisabledByStats();
+  for (const { id: cmdId, el } of commandCheckboxes) {
+    el.checked = c.enabledCommands?.has(cmdId) || false;
   }
-  for (const f of PERS_FIELDS) {
-    const el = persInputByKey.get(f.key);
-    if (el) el.value = String(c.personality?.[f.key] ?? 0);
+}
+
+function exitEditMode() {
+  editingId = null;
+  if (editBanner) editBanner.style.display = "none";
+  if (applyEditBtn) applyEditBtn.disabled = true;
+  if (cancelEditBtn) cancelEditBtn.disabled = true;
+}
+
+function getCheckedCommandsSet() {
+  const set = new Set();
+  for (const { id, el } of commandCheckboxes) {
+    if (!el.disabled && el.checked) set.add(id);
+  }
+  return set;
+}
+
+function addOrUpdateChar() {
+  const name = (elName?.value || "").trim();
+  if (!name) {
+    logError("이름을 입력해줘.");
+    return;
+  }
+  const gender = elGender?.value || "남성";
+  const age = Number(elAge?.value ?? 0) || 0;
+
+  const stats = getCurrentStats();
+  const personality = getCurrentPersonality();
+  const enabledCommands = getCheckedCommandsSet();
+
+  if (editingId) {
+    const idx = chars.findIndex((x) => x.id === editingId);
+    if (idx >= 0) {
+      chars[idx] = { ...chars[idx], name, gender, age, stats, personality, enabledCommands };
+      logOk(`캐릭터 수정: ${name}`);
+    }
+    exitEditMode();
+  } else {
+    const id = crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+    chars.push({ id, name, gender, age, stats, personality, enabledCommands, alive: true });
+    logOk(`캐릭터 추가: ${name}`);
   }
 
-  // 커맨드 체크 상태 복원
-  const enabled = new Set(c.enabledCommands || []);
-  for (const [cmdId, cb] of cmdCheckboxById.entries()) {
-    cb.checked = enabled.has(cmdId);
-  }
+  renderCharList();
+  updateRunButtonState();
+}
 
-  updateCommandEligibility();
+function saveChars() {
+  const data = JSON.stringify(chars, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "gnosia_characters.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function loadCharsFromFile() {
+  const file = loadFile?.files?.[0];
+  if (!file) {
+    logError("로드할 파일을 선택해줘.");
+    return;
+  }
+  try {
+    const text = await file.text();
+    const arr = JSON.parse(text);
+    if (!Array.isArray(arr)) throw new Error("형식이 올바르지 않음(배열 아님)");
+    chars = arr.map((c) => ({
+      ...c,
+      enabledCommands: c.enabledCommands instanceof Set ? c.enabledCommands : new Set(c.enabledCommands || []),
+      alive: c.alive ?? true,
+    }));
+    logOk("캐릭터 로드 완료");
+    exitEditMode();
+    renderCharList();
+    updateRunButtonState();
+  } catch (e) {
+    logError(`로드 실패: ${e?.message || e}`);
+  }
 }
 
 function updateRunButtonState() {
-  if (!runBtn) return;
-  runBtn.disabled = characters.length < 5;
+  // 엔진이 없어도 버튼은 켤 수 있지만, 실행은 막고 안내를 띄우는 편이 안전
+  const okCount = chars.length >= 5 && chars.length <= 15;
+  if (runBtn) runBtn.disabled = !okCount;
 }
 
-// -------------------------------
-// Save / Load (캐릭터만)
-// -------------------------------
-function saveCharacters() {
-  const blob = new Blob([JSON.stringify(characters, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "gnosia_characters.json";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-async function loadCharacters() {
-  const file = loadFile?.files?.[0];
-  if (!file) return log("로드할 파일을 선택하세요.");
-
-  const text = await file.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return log("JSON 파싱 실패: 파일이 깨졌거나 형식이 다릅니다.");
-  }
-  if (!Array.isArray(data)) return log("로드 실패: 배열 형식이 아닙니다.");
-
-  characters = data.map((c) => ({
-    id: c.id || (crypto.randomUUID?.() || String(Date.now() + Math.random())),
-    name: c.name || "이름없음",
-    gender: c.gender || "남성",
-    age: Number.isFinite(Number(c.age)) ? Number(c.age) : 0,
-    stats: c.stats || {},
-    personality: c.personality || {},
-    enabledCommands: Array.isArray(c.enabledCommands) ? c.enabledCommands : [],
-    alive: true,
-  }));
-
-  renderCharList();
-  updateRunButtonState();
-  log(`캐릭터 ${characters.length}명 로드 완료.`);
-}
-
-// -------------------------------
-// Game start / step (엔진 API가 달라도 최대한 동작)
-// -------------------------------
-function getGameConfigFromUI() {
-  const rolesEnabled = {
-    엔지니어: !!setEngineerEl?.checked,
-    닥터: !!setDoctorEl?.checked,
-    수호천사: !!setGuardianEl?.checked,
-    선내대기인: !!setGuardDutyEl?.checked,
-    AC주의자: !!setACEl?.checked,
-    버그: !!setBugEl?.checked,
+// ---- 게임 실행 ----
+function getGameConfig() {
+  return {
+    rolesEnabled: {
+      "엔지니어": !!setEngineer?.checked,
+      "닥터": !!setDoctor?.checked,
+      "수호천사": !!setGuardian?.checked,
+      "선내대기인": !!setGuardDuty?.checked,
+      "AC주의자": !!setAC?.checked,
+      "버그": !!setBug?.checked,
+    },
+    gnosiaCount: Number(gnosiaCountEl?.value ?? 1) || 1,
   };
-  const gnosiaCount = Math.max(1, Math.min(6, Number(gnosiaCountEl?.value || 1)));
-  return { rolesEnabled, gnosiaCount };
 }
 
-function startOrStepGame() {
-  clearLog();
+function runOneStep() {
+  if (!chars.length) return;
+
+  if (!GameEngine) {
+    logError("엔진(game.js)이 로드되지 않아 실행할 수 없습니다. 콘솔의 404/경로를 먼저 해결해야 합니다.");
+    return;
+  }
 
   if (!engine) {
-    // 엔진 생성
-    const cfg = getGameConfigFromUI();
-
-    try {
-      engine = new GameEngine(characters, cfg);
-    } catch (e1) {
-      try {
-        engine = new GameEngine({ characters, config: cfg });
-      } catch (e2) {
-        console.error(e1, e2);
-        log("❌ 엔진 생성 실패: game.js의 GameEngine 생성자 시그니처가 다릅니다.");
-        log("콘솔 에러를 보여주면 그에 맞춰 game.js/main.js를 맞춰줄게.");
-        return;
-      }
-    }
-
-    log("✅ 게임이 시작되었습니다.");
+    const cfg = getGameConfig();
+    engine = new GameEngine(chars, cfg);
+    logOk("게임이 시작되었습니다.");
   }
 
-  // 1스텝 실행 (메서드 이름이 다를 수 있으니 방어적으로 호출)
   try {
-    if (typeof engine.step === "function") engine.step();
-    else if (typeof engine.runStep === "function") engine.runStep();
-    else if (typeof engine.tick === "function") engine.tick();
-    else log("⚠️ engine.step() 같은 1스텝 메서드를 찾지 못했습니다. (game.js 확인 필요)");
+    engine.step(); // game.js가 step() 제공한다고 가정
   } catch (e) {
-    console.error(e);
-    log("❌ 스텝 실행 중 오류. 콘솔의 빨간 에러를 보여주세요.");
+    logError(`엔진 실행 중 오류: ${e?.message || e}`);
   }
 }
 
-// -------------------------------
-// Init
-// -------------------------------
-function init() {
-  // (중요) 렌더가 아예 안 뜨는 문제를 잡기 위해, 여기까지 오면 로그 찍음
-  console.log("[main.js] init() called");
+// ---- 초기화 ----
+async function init() {
+  // UI는 엔진/모듈과 무관하게 먼저 그려준다(“비어있는 문제” 방지)
+  renderStats();
+  renderPersonality();
 
-  renderStatsAndPersonality();
-  renderCommandChecklist();
-  resetForm();
+  // 모듈 로드 후 커맨드 UI 생성
+  try {
+    await loadModules();
+  } catch {
+    // commands.js가 실패하면 커맨드 UI는 못 그리지만,
+    // 스탯/성격은 보여야 하므로 여기서 중단하지 않음
+  }
+  renderCommands();
+
   renderCharList();
   updateRunButtonState();
 
-  addBtn?.addEventListener("click", () => {
-    const r = readCharForm();
-    if (r.error) return log(`❌ ${r.error}`);
-
-    const c = r.value;
-
-    if (editingId) {
-      characters = characters.map((x) => (x.id === editingId ? c : x));
-      log(`✅ "${c.name}" 수정 완료.`);
-    } else {
-      characters.push(c);
-      log(`✅ "${c.name}" 추가 완료.`);
-    }
-
-    renderCharList();
-    updateRunButtonState();
-    resetForm();
-  });
+  // ---- 버튼 바인딩 ----
+  addBtn?.addEventListener("click", addOrUpdateChar);
 
   applyEditBtn?.addEventListener("click", () => {
-    const r = readCharForm();
-    if (r.error) return log(`❌ ${r.error}`);
-    const c = r.value;
-    characters = characters.map((x) => (x.id === editingId ? c : x));
-    renderCharList();
-    updateRunButtonState();
-    log(`✅ "${c.name}" 수정 적용.`);
-    resetForm();
+    if (!editingId) return;
+    addOrUpdateChar();
   });
-
   cancelEditBtn?.addEventListener("click", () => {
-    resetForm();
-    log("수정 취소.");
+    exitEditMode();
   });
 
-  runBtn?.addEventListener("click", () => {
-    if (characters.length < 5) return log("캐릭터를 5명 이상 추가해야 실행할 수 있습니다.");
-    startOrStepGame();
+  saveBtn?.addEventListener("click", saveChars);
+  loadBtn?.addEventListener("click", loadCharsFromFile);
+
+  runBtn?.addEventListener("click", runOneStep);
+
+  logSaveBtn?.addEventListener("click", () => {
+    const text = (logBox?.innerText || "").trim();
+    const blob = new Blob([text], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "gnosia_log.txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
   });
 
-  saveBtn?.addEventListener("click", saveCharacters);
-  loadBtn?.addEventListener("click", () => loadCharacters());
-
-  // 관계도 영역은 아직 미구현이면 표시만
-  if (relationsView && !relationsView.textContent?.trim()) {
-    relationsView.textContent = "관계도 준비 중…";
-  }
+  logOk("UI 초기화 완료");
 }
 
-// DOMContentLoaded 보장
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
+init();
