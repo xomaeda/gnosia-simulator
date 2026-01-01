@@ -1,7 +1,10 @@
 // engine/commands.js
 // ============================================================================
-// Canonical command catalog exports (stable)
-// - Fixes: COMMAND_DEFS iterable, no duplicate exports, no compatibility junk
+// Canonical command catalog exports (stable + UI/engine compatible)
+// - COMMAND_META: 원본 메타(너의 label/req/chain 유지)
+// - COMMAND_DEFS: UI가 쓰기 편한 "배열" + name/desc 보정
+// - getAllCommandIds: 단 1회 선언
+// - Eligibility helpers: status/stats 모두 지원 + allowedCommands/enabledCommands 모두 지원
 // ============================================================================
 
 export const COMMAND = {
@@ -55,7 +58,7 @@ export const COMMAND = {
 // 최소 요구 스탯 키(네 UI 입력과 매칭)
 const STAT_KEYS = ["charisma", "logic", "acting", "charm", "stealth", "intuition"];
 
-// 커맨드 메타(여기서 UI 분류/조건/연계 조건을 준다)
+// 커맨드 메타(너 작성본 유지)
 export const COMMAND_META = {
   [COMMAND.SUSPECT]: {
     id: COMMAND.SUSPECT,
@@ -63,8 +66,8 @@ export const COMMAND_META = {
     category: "DAY",
     public: true,
     needsCheck: true,
-    req: {},               // 스테이터스 조건 없음
-    chain: {},             // 선행 조건 없음
+    req: {},
+    chain: {},
   },
   [COMMAND.AGREE_SUSPECT]: {
     id: COMMAND.AGREE_SUSPECT,
@@ -72,8 +75,8 @@ export const COMMAND_META = {
     category: "DAY",
     public: true,
     needsCheck: true,
-    req: {},               // 필요하면 네 기획서 스펙대로 넣어도 됨
-    chain: { after: [COMMAND.SUSPECT, COMMAND.ASK_AGREE] }, // 예: 의심/동의요청 뒤
+    req: {},
+    chain: { after: [COMMAND.SUSPECT, COMMAND.ASK_AGREE] },
   },
   [COMMAND.DENY]: {
     id: COMMAND.DENY,
@@ -120,6 +123,15 @@ export const COMMAND_META = {
     req: {},
     chain: { after: [COMMAND.COVER, COMMAND.ASK_AGREE] },
   },
+  [COMMAND.THANK]: {
+    id: COMMAND.THANK,
+    label: "감사한다",
+    category: "DAY",
+    public: true,
+    needsCheck: true,
+    req: {},
+    chain: { after: [COMMAND.COVER, COMMAND.DEFEND, COMMAND.CERT_HUMAN] },
+  },
   [COMMAND.COUNTER]: {
     id: COMMAND.COUNTER,
     label: "반론한다",
@@ -147,13 +159,14 @@ export const COMMAND_META = {
     req: {},
     chain: {},
   },
+
   [COMMAND.EXAGGERATE]: {
     id: COMMAND.EXAGGERATE,
     label: "과장해서 말한다",
     category: "MOD",
     public: true,
     needsCheck: true,
-    req: { acting: 15 },    // 예시(원하면 조정)
+    req: { acting: 15 },
     chain: { after: [COMMAND.DEFEND, COMMAND.COUNTER, COMMAND.COVER, COMMAND.SUSPECT] },
   },
   [COMMAND.ASK_AGREE]: {
@@ -162,7 +175,7 @@ export const COMMAND_META = {
     category: "MOD",
     public: true,
     needsCheck: true,
-    req: { charisma: 10 },  // 예시
+    req: { charisma: 25 }, // 너 기획서: 25 이상
     chain: { after: [COMMAND.SUSPECT, COMMAND.DEFEND, COMMAND.COVER, COMMAND.COUNTER] },
   },
   [COMMAND.BLOCK_REBUT]: {
@@ -171,16 +184,17 @@ export const COMMAND_META = {
     category: "CTRL",
     public: true,
     needsCheck: true,
-    req: { logic: 10 },     // 예시
+    req: { charisma: 40 }, // 너 기획서: 40 이상
     chain: { after: [COMMAND.SUSPECT, COMMAND.DEFEND, COMMAND.COVER, COMMAND.COUNTER] },
   },
+
   [COMMAND.DODGE]: {
     id: COMMAND.DODGE,
     label: "얼버무린다",
     category: "REACT",
     public: true,
     needsCheck: true,
-    req: { stealth: 25 },   // 예시
+    req: { stealth: 25 },
     chain: { after: [COMMAND.SUSPECT, COMMAND.COUNTER, COMMAND.DEFEND, COMMAND.COVER] },
   },
   [COMMAND.COUNTERATTACK]: {
@@ -189,8 +203,8 @@ export const COMMAND_META = {
     category: "REACT",
     public: true,
     needsCheck: true,
-    req: {},
-    chain: { after: [COMMAND.SUSPECT, COMMAND.COUNTER] },
+    req: { logic: 25, acting: 25 }, // 너 기획서: 논리/연기 각각 25
+    chain: { after: [COMMAND.SUSPECT] },
   },
   [COMMAND.ASK_HELP]: {
     id: COMMAND.ASK_HELP,
@@ -198,7 +212,7 @@ export const COMMAND_META = {
     category: "REACT",
     public: true,
     needsCheck: true,
-    req: { acting: 25 },    // 예시
+    req: { acting: 30 }, // 너 기획서: 30
     chain: { after: [COMMAND.SUSPECT, COMMAND.COUNTER, COMMAND.DEFEND, COMMAND.COVER] },
   },
   [COMMAND.SAD]: {
@@ -207,7 +221,7 @@ export const COMMAND_META = {
     category: "REACT",
     public: true,
     needsCheck: true,
-    req: { charm: 25 },     // 예시
+    req: { charm: 25 },
     chain: { after: [COMMAND.SUSPECT, COMMAND.COUNTER, COMMAND.DEFEND, COMMAND.COVER] },
   },
   [COMMAND.DONT_TRUST]: {
@@ -216,17 +230,18 @@ export const COMMAND_META = {
     category: "REACT",
     public: true,
     needsCheck: true,
-    req: { intuition: 30 }, // 예시
+    req: { intuition: 30 },
     chain: { after: [COMMAND.SUSPECT, COMMAND.COUNTER, COMMAND.DEFEND, COMMAND.COVER] },
   },
+
   [COMMAND.REQUEST_CO]: {
     id: COMMAND.REQUEST_CO,
     label: "역할을 밝혀라",
     category: "ROLE",
     public: true,
     needsCheck: true,
-    req: {},
-    chain: {}, // 단독 시작 커맨드
+    req: { charisma: 10 }, // 너 기획서: 카리스마 10
+    chain: {},
   },
   [COMMAND.CO_ROLE]: {
     id: COMMAND.CO_ROLE,
@@ -246,13 +261,14 @@ export const COMMAND_META = {
     req: {},
     chain: { after: [COMMAND.CO_ROLE] },
   },
+
   [COMMAND.ALL_EXCLUDE_ROLE]: {
     id: COMMAND.ALL_EXCLUDE_ROLE,
     label: "전원 배제해라",
     category: "VOTE",
     public: true,
     needsCheck: true,
-    req: { logic: 30 }, // 예시
+    req: { logic: 30 },
     chain: {},
   },
   [COMMAND.VOTE_HIM]: {
@@ -261,7 +277,7 @@ export const COMMAND_META = {
     category: "VOTE",
     public: true,
     needsCheck: true,
-    req: { logic: 10 }, // 예시
+    req: { logic: 10 },
     chain: {},
   },
   [COMMAND.DONT_VOTE]: {
@@ -270,16 +286,17 @@ export const COMMAND_META = {
     category: "VOTE",
     public: true,
     needsCheck: true,
-    req: { logic: 15 }, // 예시
+    req: { logic: 15 },
     chain: {},
   },
+
   [COMMAND.CERT_HUMAN]: {
     id: COMMAND.CERT_HUMAN,
     label: "반드시 인간이다",
     category: "CERT",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { logic: 20 },
     chain: {},
   },
   [COMMAND.CERT_ENEMY]: {
@@ -288,16 +305,17 @@ export const COMMAND_META = {
     category: "CERT",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { logic: 20 },
     chain: {},
   },
+
   [COMMAND.SAY_HUMAN]: {
     id: COMMAND.SAY_HUMAN,
     label: "인간이라고 말해",
     category: "TALK",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { intuition: 20 },
     chain: {},
   },
   [COMMAND.CHAT]: {
@@ -306,7 +324,7 @@ export const COMMAND_META = {
     category: "TALK",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { stealth: 10 },
     chain: {},
   },
   [COMMAND.DOGEZA]: {
@@ -315,16 +333,17 @@ export const COMMAND_META = {
     category: "TALK",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { stealth: 35 },
     chain: {},
   },
+
   [COMMAND.COOP]: {
     id: COMMAND.COOP,
     label: "협력한다",
     category: "COOP",
     public: true,
     needsCheck: true,
-    req: {},
+    req: { charm: 15 }, // 너 기획서: 15
     chain: {},
   },
   [COMMAND.NIGHT_COOP]: {
@@ -333,16 +352,20 @@ export const COMMAND_META = {
     category: "NIGHT",
     public: true,
     needsCheck: true,
-    req: {},
+    req: {}, // 너 요구: 조건 없음
     chain: {},
   },
 };
 
 // ---- exports for UI convenience ----
-// main.js가 체크박스를 만들 때 "반복 가능한 배열"이 필요하므로, 항상 배열로 제공
-export const COMMAND_DEFS = Object.values(COMMAND_META);
+// ✅ UI가 원하는 형태: "배열" + 표시용 name/desc 존재
+export const COMMAND_DEFS = Object.values(COMMAND_META).map((d) => ({
+  ...d,
+  name: d.name ?? d.label ?? d.id,
+  desc: d.desc ?? "",
+}));
 
-// game.js 등에서 전체 ID가 필요할 때
+// ✅ game.js 등에서 전체 ID가 필요할 때 (단 1회 선언)
 export function getAllCommandIds() {
   return Object.keys(COMMAND_META);
 }
@@ -353,34 +376,54 @@ function num(n) {
   return Number.isFinite(x) ? x : 0;
 }
 
+// char의 스탯 접근을 유연하게 지원 (stats / status 둘 다)
+function getStatsObj(char) {
+  return char?.stats ?? char?.status ?? char?.statuses ?? {};
+}
+
+// 유저가 체크한 "허용 커맨드" 접근도 유연하게 (enabledCommands/allowedCommands)
+function getEnabledSet(char) {
+  const v =
+    char?.enabledCommands ??
+    char?.allowedCommands ??
+    char?.commands ??
+    null;
+
+  if (v instanceof Set) return v;
+  if (Array.isArray(v)) return new Set(v);
+  return null; // null이면 "체크 시스템 미사용"으로 간주할지, 또는 false로 간주할지 선택 가능
+}
+
 export function statEligible(char, cmdId) {
   const def = COMMAND_META[cmdId];
   if (!def) return false;
+
   const req = def.req || {};
-  const st = char?.stats || {};
+  const st = getStatsObj(char);
+
   for (const k of Object.keys(req)) {
     if (STAT_KEYS.includes(k) && num(st[k]) < num(req[k])) return false;
   }
   return true;
 }
 
-// "기본 사용 가능" (체크 + 스탯)만 보는 함수
+// "기본 사용 가능" (유저 체크 + 스탯)만 보는 함수
 export function isCommandEligibleBasic(char, cmdId, ctx = null) {
   if (!COMMAND_META[cmdId]) return false;
 
-  // 유저 체크 기반: enabledCommands(Set) 기준
-  // (engine이 enabledCommands를 Set으로 유지한다고 가정)
-  const enabled = char?.enabledCommands;
-  if (enabled instanceof Set) {
-    if (!enabled.has(cmdId)) return false;
-  } else if (Array.isArray(enabled)) {
-    if (!enabled.includes(cmdId)) return false;
+  // ✅ 유저 체크 기반
+  const enabledSet = getEnabledSet(char);
+  if (enabledSet) {
+    if (!enabledSet.has(cmdId)) return false;
   }
+  // enabledSet이 null이면: 체크 시스템이 아직 엔진에 안 붙은 상태일 수 있으니
+  // 여기서는 "체크 미사용 = 통과"로 둔다 (원하면 false로 바꿔도 됨)
+
   return statEligible(char, cmdId);
 }
 
 // "연계(부속 커맨드) 조건"까지 포함해서 판정
-// ctx: { chain: [{cmd,...}], ... } 형태를 가정
+// ctx: { chain: [{cmd or command, ...}], ... } 형태 지원
 export function isChainEligible(char, cmdId, ctx = null) {
   const def = COMMAND_META[cmdId];
   if (!def) return false;
@@ -390,8 +433,12 @@ export function isChainEligible(char, cmdId, ctx = null) {
   const after = def.chain?.after;
   if (!after || !after.length) return true;
 
-  const last = ctx?.chain?.length ? ctx.chain[ctx.chain.length - 1] : null;
+  const chain = ctx?.chain;
+  const last = Array.isArray(chain) && chain.length ? chain[chain.length - 1] : null;
   if (!last) return false;
 
-  return after.includes(last.cmd);
+  const lastCmd = last.cmd ?? last.command ?? last.id ?? null;
+  if (!lastCmd) return false;
+
+  return after.includes(lastCmd);
 }
