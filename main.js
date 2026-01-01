@@ -1,15 +1,25 @@
-// main.js (루트) — index.html: <script type="module" src="./main.js"></script>
+// ✅ GitHub Pages에서 경로/캐시 문제를 피하기 위한 안전 로더
+const url = (p) => new URL(p, import.meta.url).href;
 
-import { COMMAND_DEFS, statEligible as cmdStatEligible } from "./engine/commands.js";
+let GameEngine, COMMAND_DEFS, cmdStatEligible;
+let rolesApi = null;
+let relationApi = null;
 
-// 엔진은 있으면 쓰고, 없거나 실패해도 UI는 무조건 뜨게
-let GameEngine = null;
 try {
-  const mod = await import("./engine/game.js");
-  GameEngine = mod.GameEngine ?? null;
+  ({ GameEngine } = await import(url("./engine/game.js")));
+  ({ COMMAND_DEFS, statEligible: cmdStatEligible } = await import(url("./engine/commands.js")));
+
+  // (선택) roles / relation 모듈은 있으면 쓰고 없으면 무시
+  try { rolesApi = await import(url("./engine/roles.js")); } catch {}
+  try { relationApi = await import(url("./engine/relation.js")); } catch {}
 } catch (e) {
-  GameEngine = null;
-  console.warn("Engine import failed:", e);
+  console.error(e);
+  const logBox = document.getElementById("log");
+  if (logBox) {
+    logBox.innerHTML = `❌ 엔진 로딩 실패<br>
+<pre style="white-space:pre-wrap; color:#f88;">${String(e?.message || e)}</pre>`;
+  }
+  throw e;
 }
 
 // -------------------------------
