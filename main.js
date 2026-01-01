@@ -475,12 +475,12 @@ async function loadCharactersFromFile(file) {
   try {
     data = JSON.parse(text);
   } catch {
-    alert("JSON 파일이 아니야.");
+    alert("JSON 파일이 아닙니다.");
     return;
   }
 
   if (!data || !Array.isArray(data.characters)) {
-    alert("형식이 올바르지 않은 세이브 파일이야.");
+    alert("형식이 올바르지 않은 세이브 파일입니다.");
     return;
   }
 
@@ -543,7 +543,7 @@ function getGameSettings() {
 
 function stepGame() {
   if (characters.length < 5) {
-    addLogLine("캐릭터가 5명 이상이어야 실행할 수 있어.");
+    addLogLine("캐릭터가 5명 이상이어야 실행할 수 있습니다.");
     return;
   }
 
