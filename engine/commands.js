@@ -16,9 +16,18 @@
 //
 // Internal commands (찬성/반대/잡담참여/중단/인간선언 등)은 UI에 공개하지 않음.
 //
-// This file is designed to be used by:
-// - UI: "이 캐릭터가 체크 가능한 커맨드" 목록 생성 (statEligible 필터)
-// - Engine: "연계 가능 커맨드" 판정 및 1일 1회 제한 같은 룰 체크
+// Exports (main.js / game.js 호환):
+// - COMMAND
+// - COMMAND_META (aka COMMAND_DEFS)
+// - COMMAND_DEFS
+// - getAllCommandIds
+// - getChecklistCommandsForCharacter
+// - groupChecklistCommands
+// - getCommandMeta
+// - statEligible
+// - isCommandEligibleBasic
+// - isChainEligible
+// - getSuggestedDefaultChecks
 // ============================================================================
 
 export const COMMAND = {
@@ -79,8 +88,6 @@ export const COMMAND = {
 };
 
 // --------- helpers ---------
-const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-
 export function statEligible(stats, req = {}) {
   // stats fields: charisma, logic, acting, charm, stealth, intuition
   // req fields can be subset
@@ -91,15 +98,13 @@ export function statEligible(stats, req = {}) {
 }
 
 // 어떤 커맨드는 "기본 커맨드(누구나 가능)"이라서 유저 체크가 없어도 엔진이 사용 가능
-// 다만 UI에서는 "체크 항목"으로 보여주지 않을 수도 있음(원하면 showOnChecklist로).
-//
+// alwaysAvailable: 체크 없어도 가능(기획서에서 누구나 가능)
 // userCheckRequired: true => 유저가 체크해줘야 그 캐릭터가 시도 가능
-// alwaysAvailable: true => 체크 없어도 가능(기획서에서 누구나 가능한 것들)
-// showOnChecklist: true => 캐릭터 생성에서 체크 UI로 표시할지
-// visibleInUI: true => 커맨드 이름을 UI에 보여줄지 (internal은 false)
+// showOnChecklist: 캐릭터 생성에서 체크 UI로 표시할지
+// visibleInUI: UI에 커맨드 이름을 보여줄지 (internal은 false)
 //
-// chain: afterAnyOf / afterAllOf / notAfter / topicRequired 같은 연계 조건
-// limits: perDay, perLoop, perChain (1턴 1회 같은 개념은 perChain)
+// chain: afterAnyOf / beforeAnyOf / notAfter / startsChain 등 연계 조건
+// limits: perDay, perLoop, perNight, perChain 등
 export const COMMAND_META = {
   // =======================
   // 기본/핵심 (누구나)
@@ -109,11 +114,11 @@ export const COMMAND_META = {
     category: "DAY_MAIN",
     alwaysAvailable: true,
     userCheckRequired: false,
-    showOnChecklist: false, // 누구나 가능이라 체크를 굳이 안 보여도 됨(원하면 true로)
+    showOnChecklist: false,
     visibleInUI: true,
-    req: {}, // none
+    req: {},
     chain: { startsChain: true },
-    limits: { perChain: 1 }, // 1턴에 시작 커맨드는 1개
+    limits: { perChain: 1 },
     note: "대상을 의심. 신뢰/우호 하락 + 동조 유도(카리스마).",
   },
 
@@ -163,7 +168,6 @@ export const COMMAND_META = {
         COMMAND.AGREE_COUNTER,
       ],
       needsTarget: true,
-      // 반론봉쇄(BLOCK_REBUT) 있으면 막힘(단 도움요청 성공으로 무효화 가능) => 엔진에서 처리
     },
     limits: { perChain: 1 },
     note: "의심받는 대상을 변호하여 신뢰/우호 회복 + 동조 유도(카리스마).",
@@ -194,10 +198,7 @@ export const COMMAND_META = {
     showOnChecklist: false,
     visibleInUI: true,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.DEFEND],
-      needsTargetFromChain: true,
-    },
+    chain: { afterAnyOf: [COMMAND.DEFEND], needsTargetFromChain: true },
     limits: { perChain: 1 },
     note: "변호에 동조(의심동의의 변호 버전).",
   },
@@ -210,10 +211,7 @@ export const COMMAND_META = {
     showOnChecklist: false,
     visibleInUI: true,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.COVER],
-      needsTargetFromChain: true,
-    },
+    chain: { afterAnyOf: [COMMAND.COVER], needsTargetFromChain: true },
     limits: { perChain: 1 },
     note: "감싼다에 동조(의심동의의 감싼다 버전).",
   },
@@ -227,12 +225,11 @@ export const COMMAND_META = {
     visibleInUI: true,
     req: {},
     chain: {
-      // 엄밀히는: 감싸짐 직후 OR 반드시 인간이다 지목 직후
       afterAnyOf: [COMMAND.COVER, COMMAND.DEFEND, COMMAND.CERT_HUMAN],
       onlyIfSelfWasBenefited: true,
     },
     limits: { perChain: 1 },
-    note: "답례. 어그로↓ + 호감↑(귀염성 성격/스탯과 시너지는 엔진에서).",
+    note: "답례. 어그로↓ + 호감↑(귀염성).",
   },
 
   [COMMAND.COUNTER]: {
@@ -259,10 +256,7 @@ export const COMMAND_META = {
     showOnChecklist: false,
     visibleInUI: true,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.COUNTER],
-      needsTargetFromChain: true,
-    },
+    chain: { afterAnyOf: [COMMAND.COUNTER], needsTargetFromChain: true },
     limits: { perChain: 1 },
     note: "반론에 동조.",
   },
@@ -271,17 +265,13 @@ export const COMMAND_META = {
     label: "시끄러워",
     category: "DAY_SUB",
     alwaysAvailable: false,
-    userCheckRequired: true,      // 성향상 안 쓰게 막으려면 체크형이 자연스러움
+    userCheckRequired: true,
     showOnChecklist: true,
     visibleInUI: true,
-    req: {}, // 기획서에 조건이 '상황'이라 스탯 조건 없음
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.COVER],
-      // '발언 너무 많은 사람' 조건은 엔진에서 판단
-      needsTargetFromChain: true,
-    },
+    req: {},
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.COVER], needsTargetFromChain: true },
     limits: { perChain: 1 },
-    note: "말이 많은 사람을 지적. (상황부 커맨드)",
+    note: "말이 많은 사람을 지적(상황부 커맨드).",
   },
 
   // =======================
@@ -296,9 +286,8 @@ export const COMMAND_META = {
     visibleInUI: true,
     req: { charisma: 10 },
     chain: { startsChain: true, needsTarget: true },
-    limits: { perDay: 1, perRolePerDay: true }, // 같은 역할에 대해 1일 1회 (엔진에서 roleKey로 구현)
-    note:
-      "아직 CO 안한 인물을 확률로 커밍아웃하게 유도. (대상: 엔지니어/닥터/선내대기인만 CO 가능)",
+    limits: { perDay: 1, perRolePerDay: true },
+    note: "CO 유도(대상: 엔지/닥/선내대기인만 CO 가능).",
   },
 
   [COMMAND.CO_ROLE]: {
@@ -306,18 +295,12 @@ export const COMMAND_META = {
     category: "DAY_SUB",
     alwaysAvailable: true,
     userCheckRequired: false,
-    showOnChecklist: false, // 유저 체크 대상 아님(엔진이 필요 시 사용)
+    showOnChecklist: false,
     visibleInUI: true,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.REQUEST_CO],
-      // 실제 CO 가능자 규칙:
-      // - 진짜로 엔지/닥/선내대기인 OR
-      // - 거짓말 가능(그노시아/AC/버그)이고 엔지/닥 사칭만 가능
-      // - AC/BUG/GNOSIA/CREW은 "CO 불가"(너가 규칙으로 확정) => 엔진에서 엄격 적용
-    },
+    chain: { afterAnyOf: [COMMAND.REQUEST_CO] },
     limits: { perDay: 1, perRolePerDay: true },
-    note: "자신의 역할을 선언(진실 or 사칭).",
+    note: "자신의 역할을 선언(진실/사칭은 엔진에서 판정).",
   },
 
   [COMMAND.CO_SELF_TOO]: {
@@ -358,7 +341,7 @@ export const COMMAND_META = {
       needsTargetFromChain: true,
     },
     limits: { perChain: 1 },
-    note: "동조 가능한 발언 뒤에 사용. 우호도(연기력) 쪽 위력 강화 + 어그로↑",
+    note: "동조 가능한 발언 뒤. 우호(연기력) 강화 + 어그로↑",
   },
 
   [COMMAND.ASK_AGREE]: {
@@ -369,12 +352,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { charisma: 25 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.COVER],
-      needsTargetFromChain: true,
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.COVER], needsTargetFromChain: true },
     limits: { perChain: 1 },
-    note: "추가 동조를 유도. 아무도 동조 안 하면 어그로만 쌓일 수 있음.",
+    note: "추가 동조 유도. 아무도 동조 안 하면 어그로만 쌓일 수 있음.",
   },
 
   [COMMAND.BLOCK_REBUT]: {
@@ -387,12 +367,11 @@ export const COMMAND_META = {
     req: { charisma: 40 },
     chain: {
       afterAnyOf: [COMMAND.SUSPECT, COMMAND.COVER],
-      notAfter: [COMMAND.COUNTER], // 반론 뒤에는 사용 불가
+      notAfter: [COMMAND.COUNTER],
       needsTargetFromChain: true,
     },
     limits: { perChain: 1 },
-    note:
-      "동의+상대의 반론(옹호) 동조를 막음. 어그로 매우 큼. '도움을 요청한다' 성공 시 무효화 가능.",
+    note: "반론(옹호) 동조를 봉쇄. 도움요청 성공 시 무효화 가능(엔진 처리).",
   },
 
   // =======================
@@ -406,10 +385,7 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { stealth: 25 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER],
-      onlyIfSelfIsTarget: true,
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER], onlyIfSelfIsTarget: true },
     limits: { perChain: 1 },
     note: "논의를 즉시 종료하고 다음 라운드로. 대신 아무도 자신을 옹호 못함.",
   },
@@ -422,13 +398,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { logic: 25, acting: 25 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER],
-      onlyIfSelfIsTarget: true,
-      targetsAttacker: true,
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER], onlyIfSelfIsTarget: true, targetsAttacker: true },
     limits: { perChain: 1 },
-    note: "공격자 신뢰/우호를 역공. 대신 본인 피해는 회복 안 되는 육참골단.",
+    note: "공격자 신뢰/우호를 역공. 대신 본인 피해는 회복 안 됨.",
   },
 
   [COMMAND.ASK_HELP]: {
@@ -439,13 +411,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { acting: 30 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER],
-      onlyIfSelfIsTarget: true,
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER], onlyIfSelfIsTarget: true },
     limits: { perChain: 1 },
-    note:
-      "지정 대상에게 변호 요청. 연기력/카리스마/우호도 따라 성공. 반론 봉쇄가 있으면 성공 시 무효화.",
+    note: "지정 대상에게 변호 요청. 성공 시 반론 봉쇄 무효화 가능(엔진 처리).",
   },
 
   [COMMAND.SAD]: {
@@ -456,12 +424,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { charm: 25 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER],
-      onlyIfSelfIsTarget: true,
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER], onlyIfSelfIsTarget: true },
     limits: { perChain: 1 },
-    note: "동정심 유발로 변호 유도. 방어용으로 강력.",
+    note: "동정심 유발로 변호 유도.",
   },
 
   [COMMAND.DONT_TRUST]: {
@@ -472,16 +437,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { intuition: 30 },
-    chain: {
-      afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER],
-      // 원문: '거짓말을 한 사람, 또는 선원 편이 아닐 때 아무에게나 의심 등 공격당했을 때'
-      onlyIfSelfIsTarget: true,
-      marksAttacker: true,
-      cooldownToSameTarget: true, // 다음날 보고 끝날 때까지 같은 사람에게 재사용 불가(엔진에서)
-    },
+    chain: { afterAnyOf: [COMMAND.SUSPECT, COMMAND.AGREE_SUSPECT, COMMAND.COUNTER], onlyIfSelfIsTarget: true, marksAttacker: true, cooldownToSameTarget: true },
     limits: { perDay: 1 },
-    note:
-      "상대가 거짓말했을 때 들킬 확률↑(직감). 선원편은 '거짓말을 알아챈 적' 있어야만 사용 가능(엔진이 판단).",
+    note: "상대 거짓말 노출 확률↑(직감). 같은 상대 연속 사용 제한(엔진 처리).",
   },
 
   // =======================
@@ -497,8 +455,7 @@ export const COMMAND_META = {
     req: { logic: 10 },
     chain: { startsChain: true, needsTarget: true },
     limits: { perDay: 1 },
-    note:
-      "엔지니어가 그노시아라고 보고한 사람/반드시 적/확정 적이 있을 때 제안. 타인 투표확률↑",
+    note: "투표 제안(타인 투표확률↑).",
   },
 
   [COMMAND.DONT_VOTE]: {
@@ -524,8 +481,7 @@ export const COMMAND_META = {
     req: { logic: 20 },
     chain: { startsChain: true, needsTarget: true, noRepeatOnSameTarget: true },
     limits: { perDay: 1 },
-    note:
-      "인간 확정 대상에게만 사용 가능(중복 불가). 이후 논의에서 공격대상으로 거론되지 않게 됨.",
+    note: "인간 확정 대상에게만 사용(중복 불가).",
   },
 
   [COMMAND.CERT_ENEMY]: {
@@ -538,8 +494,7 @@ export const COMMAND_META = {
     req: { logic: 20 },
     chain: { startsChain: true, needsTarget: true },
     limits: { perDay: 1 },
-    note:
-      "거짓말 확정/인간의 적 확정 대상에게 사용. 이후 논의에서 활동 제한(엔진에서 처리).",
+    note: "적 확정 대상에게 사용. 이후 활동 제한(엔진 처리).",
   },
 
   [COMMAND.ALL_EXCLUDE_ROLE]: {
@@ -550,14 +505,9 @@ export const COMMAND_META = {
     showOnChecklist: true,
     visibleInUI: true,
     req: { logic: 30 },
-    chain: {
-      startsChain: true,
-      needsRoleGroup: true, // "지목한 역할군" 필요 (엔진에서 role pick)
-      cannotTargetOwnClaimRole: true,
-    },
+    chain: { startsChain: true, needsRoleGroup: true, cannotTargetOwnClaimRole: true },
     limits: { perLoop: 1 },
-    note:
-      "가짜가 섞일 수 있는 역할에 둘 이상 CO했을 때, 해당 역할 전원 투표 확률↑. 반대가 나오면 끊김.",
+    note: "지목한 역할 전원에 투표 확률↑. 반대 나오면 끊김.",
   },
 
   // =======================
@@ -573,8 +523,7 @@ export const COMMAND_META = {
     req: { stealth: 10 },
     chain: { startsChain: true },
     limits: { perDay: 1 },
-    note:
-      "제안자의 어그로↓. 참여자(최대 3명)와 우호↑. 누군가 끊을 수 있음(끊는 사람과 우호↓).",
+    note: "어그로↓. 참여자들과 우호↑. 누군가 중단 가능.",
   },
 
   [COMMAND.COOP]: {
@@ -587,8 +536,7 @@ export const COMMAND_META = {
     req: { charm: 15 },
     chain: { startsChain: true, needsTarget: true, onlyIfNotCooperating: true },
     limits: { perDay: 1 },
-    note:
-      "대상에게 협력 제안. 반드시 수락하진 않음(귀염성/우호 영향). 수락 시 우호 최고 단계로.",
+    note: "대상에게 협력 제안. 수락 시 우호 최고 단계로.",
   },
 
   [COMMAND.SAY_HUMAN]: {
@@ -601,8 +549,7 @@ export const COMMAND_META = {
     req: { intuition: 20 },
     chain: { startsChain: true },
     limits: { perLoop: 1 },
-    note:
-      "전원에게 '나는 인간' 발언 유도. 누군가 끊을 수 있음(끊는 행위가 신뢰↓).",
+    note: "전원에게 '나는 인간' 발언 유도. 누군가 중단 가능.",
   },
 
   [COMMAND.DOGEZA]: {
@@ -612,11 +559,10 @@ export const COMMAND_META = {
     userCheckRequired: true,
     showOnChecklist: true,
     visibleInUI: true,
-    req: { stealth: 35 }, // 기획서: 스텔스 35 이상
+    req: { stealth: 35 },
     chain: { onlyOnColdSleepResult: true },
     limits: { perLoop: 1 },
-    note:
-      "투표로 콜드슬립 될 때 발동. 연기력 기반으로 콜드슬립 회피 확률.",
+    note: "콜드슬립 대상 시 회피 확률(연기력 기반, 엔진 처리).",
   },
 
   // =======================
@@ -629,11 +575,10 @@ export const COMMAND_META = {
     userCheckRequired: true,
     showOnChecklist: true,
     visibleInUI: true,
-    req: {}, // 스탯 조건 없음(너가 추가 요구)
+    req: {},
     chain: { nightOnly: true },
     limits: { perNight: 1 },
-    note:
-      "밤 자유행동에서 협력 요청 로그 생성. 수락/거절 가능. 수락 시 상호 우호 크게 상승.",
+    note: "밤 자유행동에서 협력 요청. 수락/거절. 수락 시 상호 우호↑(엔진 처리).",
   },
 
   // =======================
@@ -647,11 +592,9 @@ export const COMMAND_META = {
     showOnChecklist: false,
     visibleInUI: false,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.VOTE_HIM, COMMAND.DONT_VOTE, COMMAND.ALL_EXCLUDE_ROLE],
-    },
+    chain: { afterAnyOf: [COMMAND.VOTE_HIM, COMMAND.DONT_VOTE, COMMAND.ALL_EXCLUDE_ROLE] },
     limits: { perChain: 1 },
-    note: "투표/전원배제 제안에 대한 찬성.",
+    note: "제안에 찬성.",
   },
 
   [COMMAND._REJECT]: {
@@ -662,12 +605,9 @@ export const COMMAND_META = {
     showOnChecklist: false,
     visibleInUI: false,
     req: {},
-    chain: {
-      afterAnyOf: [COMMAND.VOTE_HIM, COMMAND.DONT_VOTE, COMMAND.ALL_EXCLUDE_ROLE],
-      endsChainImmediately: true,
-    },
+    chain: { afterAnyOf: [COMMAND.VOTE_HIM, COMMAND.DONT_VOTE, COMMAND.ALL_EXCLUDE_ROLE], endsChainImmediately: true },
     limits: { perChain: 1 },
-    note: "반대가 나오면 즉시 그 턴 종료.",
+    note: "반대가 나오면 즉시 턴 종료.",
   },
 
   [COMMAND._CHAT_JOIN]: {
@@ -680,7 +620,7 @@ export const COMMAND_META = {
     req: {},
     chain: { afterAnyOf: [COMMAND.CHAT] },
     limits: { perChain: 1 },
-    note: "잡담 참여(누구나 가능, 체크 불필요).",
+    note: "잡담 참여(누구나 가능).",
   },
 
   [COMMAND._CHAT_STOP]: {
@@ -706,8 +646,9 @@ export const COMMAND_META = {
     req: {},
     chain: { afterAnyOf: [COMMAND.SAY_HUMAN] },
     limits: { perChain: 1 },
-    note: "인간 선언(거짓말 가능 진영은 거짓 선언이 됨).",
+    note: "인간 선언.",
   },
+
   [COMMAND._SAY_HUMAN_SKIP]: {
     label: "아무 말도 하지 않는다",
     category: "INTERNAL",
@@ -720,6 +661,7 @@ export const COMMAND_META = {
     limits: { perChain: 1 },
     note: "선언 안 함.",
   },
+
   [COMMAND._SAY_HUMAN_STOP]: {
     label: "선언을 중단시킨다",
     category: "INTERNAL",
@@ -741,7 +683,6 @@ export const COMMAND_META = {
 /**
  * UI에서 "체크 리스트로 보여줄 커맨드 목록"을 가져온다.
  * - 스탯 조건을 충족하는 것만 반환(충족 못하면 '처음부터 선택 불가' 요구 반영)
- * - alwaysAvailable false인데 userCheckRequired true인 것들 중심
  */
 export function getChecklistCommandsForCharacter(char) {
   const out = [];
@@ -756,7 +697,6 @@ export function getChecklistCommandsForCharacter(char) {
     out.push({ id, label: m.label, category: m.category, note: m.note });
   }
 
-  // 보기 좋게 카테고리/이름순 정렬
   out.sort((a, b) => {
     if (a.category !== b.category) return a.category.localeCompare(b.category);
     return a.label.localeCompare(b.label, "ko");
@@ -765,103 +705,6 @@ export function getChecklistCommandsForCharacter(char) {
   return out;
 }
 
-/**
- * 커맨드 메타를 반환
- */
-export function getCommandMeta(id) {
-  return COMMAND_META[id] || null;
-}
-
-/**
- * (엔진용) 어떤 커맨드를 "시도 가능"인지 1차 판정:
- * - alive, stat, userCheckRequired, phase(낮/밤) 같은 기본 조건
- * - chain 연계 조건은 ctx 기반으로 별도로 판정 (isChainEligible)
- */
-export function isCommandEligibleBasic({ char, commandId, phase }) {
-  const meta = COMMAND_META[commandId];
-  if (!meta) return false;
-  if (!char?.alive) return false;
-
-  if (meta.chain?.nightOnly && phase !== "NIGHT_FREE" && phase !== "NIGHT_RESOLVE") return false;
-  if (!meta.chain?.nightOnly && phase === "NIGHT_FREE") {
-    // 밤 자유행동에서 쓸 수 있는 낮 커맨드는 없음(원하면 예외 추가)
-    // 단 NIGHT_COOP는 nightOnly라 여기 안 걸림
-  }
-
-  // stat requirement
-  if (!statEligible(char.stats, meta.req || {})) return false;
-
-  // user check requirement
-  if (meta.userCheckRequired && !(char.enabledCommands?.has?.(commandId) || char.enabledCommands?.includes?.(commandId))) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * (엔진용) 부속 커맨드 연계 조건 판정.
- * ctx는 엔진이 쓰는 턴 컨텍스트(이전 커맨드들, 체인 타겟 등)를 의미.
- *
- * ctx 예시 필드(엔진 구현에 맞춰 확장 가능):
- * - chain: [{actorId, cmd, targetId, extra}, ...]
- * - targetId: 메인 커맨드 대상
- * - topic: 메인 커맨드 종류
- * - selfIsTarget: boolean (현재 char가 타겟인지)
- */
-export function isChainEligible({ char, commandId, ctx }) {
-  const meta = COMMAND_META[commandId];
-  if (!meta) return false;
-  const rule = meta.chain || {};
-  const chain = Array.isArray(ctx?.chain) ? ctx.chain : [];
-  const last = chain.length ? chain[chain.length - 1] : null;
-  const main = chain.length ? chain[0] : null;
-
-  // startsChain: 체인이 비어있어야 함
-  if (rule.startsChain && chain.length > 0) return false;
-
-  // afterAnyOf
-  if (rule.afterAnyOf && rule.afterAnyOf.length) {
-    const ok = chain.some((x) => rule.afterAnyOf.includes(x.cmd));
-    if (!ok) return false;
-  }
-
-  // beforeAnyOf (즉, 아직 그 커맨드들이 나오기 전이어야)
-  if (rule.beforeAnyOf && rule.beforeAnyOf.length) {
-    const exists = chain.some((x) => rule.beforeAnyOf.includes(x.cmd));
-    if (exists) return false;
-  }
-
-  // notAfter (마지막 커맨드가 notAfter에 해당하면 불가)
-  if (rule.notAfter && rule.notAfter.length && last) {
-    if (rule.notAfter.includes(last.cmd)) return false;
-  }
-
-  // needsTarget: 이 커맨드 자체가 타겟 필요(엔진에서 targetId를 꼭 줘야)
-  if (rule.needsTarget && !ctx?.targetId) return false;
-
-  // needsTargetFromChain: 체인의 target이 있어야
-  if (rule.needsTargetFromChain && !ctx?.targetId) return false;
-
-  // onlyIfSelfIsTarget
-  if (rule.onlyIfSelfIsTarget) {
-    if (!ctx?.targetId) return false;
-    if (ctx.targetId !== char.id) return false;
-  }
-
-  // targetsAttacker: 엔진에서 "공격자=main.actorId" 같은 규칙으로 타겟을 잡아야 함
-  // 여기서는 최소로 'main 존재'만 체크
-  if (rule.targetsAttacker) {
-    if (!main) return false;
-  }
-
-  // endsChainImmediately 같은 건 판정이 아니라 힌트(엔진이 처리)
-  return true;
-}
-
-/**
- * UI 용: 커맨드를 "표시용 그룹"으로 묶어준다.
- */
 export function groupChecklistCommands(list) {
   const groups = new Map();
   for (const item of list) {
@@ -872,61 +715,115 @@ export function groupChecklistCommands(list) {
   return groups;
 }
 
+export function getCommandMeta(id) {
+  return COMMAND_META[id] || null;
+}
+
 /**
- * (선택) 기본 체크 추천:
- * - 유저가 체크 안 해도 되지만, "성향 체크" 편의를 위해 추천 세트를 제공할 수 있음.
- * - 필요없으면 UI에서 안 써도 됨.
+ * (엔진용) 기본 사용 가능 판정(생존, 스탯, 유저체크, 페이즈)
+ */
+export function isCommandEligibleBasic({ char, commandId, phase }) {
+  const meta = COMMAND_META[commandId];
+  if (!meta) return false;
+  if (!char?.alive) return false;
+
+  if (meta.chain?.nightOnly) {
+    if (phase !== "NIGHT_FREE" && phase !== "NIGHT_RESOLVE") return false;
+  } else {
+    // nightOnly 아닌 커맨드는 밤자유행동에서 기본적으로 사용하지 않음(엔진에서 예외 처리 가능)
+    if (phase === "NIGHT_FREE") return false;
+  }
+
+  if (!statEligible(char.stats, meta.req || {})) return false;
+
+  if (meta.userCheckRequired) {
+    const enabled =
+      (char.enabledCommands?.has?.(commandId)) ||
+      (Array.isArray(char.enabledCommands) && char.enabledCommands.includes(commandId));
+    if (!enabled) return false;
+  }
+
+  return true;
+}
+
+/**
+ * (엔진용) 부속 커맨드 연계 조건 판정
+ */
+export function isChainEligible({ char, commandId, ctx }) {
+  const meta = COMMAND_META[commandId];
+  if (!meta) return false;
+  const rule = meta.chain || {};
+  const chain = Array.isArray(ctx?.chain) ? ctx.chain : [];
+  const last = chain.length ? chain[chain.length - 1] : null;
+  const main = chain.length ? chain[0] : null;
+
+  if (rule.startsChain && chain.length > 0) return false;
+
+  if (rule.afterAnyOf && rule.afterAnyOf.length) {
+    const ok = chain.some((x) => rule.afterAnyOf.includes(x.cmd));
+    if (!ok) return false;
+  }
+
+  if (rule.beforeAnyOf && rule.beforeAnyOf.length) {
+    const exists = chain.some((x) => rule.beforeAnyOf.includes(x.cmd));
+    if (exists) return false;
+  }
+
+  if (rule.notAfter && rule.notAfter.length && last) {
+    if (rule.notAfter.includes(last.cmd)) return false;
+  }
+
+  if (rule.needsTarget && !ctx?.targetId) return false;
+  if (rule.needsTargetFromChain && !ctx?.targetId) return false;
+
+  if (rule.onlyIfSelfIsTarget) {
+    if (!ctx?.targetId) return false;
+    if (ctx.targetId !== char.id) return false;
+  }
+
+  if (rule.targetsAttacker) {
+    if (!main) return false;
+  }
+
+  return true;
+}
+
+/**
+ * 추천 기본 체크(옵션)
  */
 export function getSuggestedDefaultChecks(char) {
   const all = getChecklistCommandsForCharacter(char);
-  // 기본 추천: 범용/자주 쓰는 것들 몇 개
   const prefer = new Set([
     COMMAND.NOISY,
     COMMAND.EXAGGERATE,
     COMMAND.ASK_AGREE,
+    COMMAND.BLOCK_REBUT,
     COMMAND.DODGE,
     COMMAND.COUNTERATTACK,
     COMMAND.ASK_HELP,
     COMMAND.SAD,
     COMMAND.DONT_TRUST,
+    COMMAND.REQUEST_CO,
     COMMAND.VOTE_HIM,
     COMMAND.DONT_VOTE,
     COMMAND.CERT_HUMAN,
     COMMAND.CERT_ENEMY,
+    COMMAND.ALL_EXCLUDE_ROLE,
     COMMAND.CHAT,
     COMMAND.COOP,
     COMMAND.SAY_HUMAN,
     COMMAND.DOGEZA,
     COMMAND.NIGHT_COOP,
-    COMMAND.REQUEST_CO,
-    COMMAND.BLOCK_REBUT,
-    COMMAND.ALL_EXCLUDE_ROLE,
   ]);
-
   return all.filter((x) => prefer.has(x.id)).map((x) => x.id);
 }
 
-// =========================
-// export helper (FIX)
-// =========================
-
-  // COMMAND가 배열이면 그대로
-  if (Array.isArray(COMMAND)) return [...COMMAND];
-
-  // 혹시 다른 구조면 빈 배열
-  return [];
-}
-
-// =========================
 // ----------------------------------------------------------------------------
 // Compatibility exports for main.js / game.js
 // ----------------------------------------------------------------------------
-
-// main.js에서 COMMAND_DEFS를 import하는 경우를 위해
-// 실제로 쓰는 메타 테이블(COMMAND_META)을 그대로 노출한다.
 export const COMMAND_DEFS = COMMAND_META;
 
-// game.js나 기타 코드에서 전체 커맨드 id 목록이 필요할 때 사용
+/** 전체 커맨드 ID 목록(중복 선언 금지: 이 함수는 여기 1개만 존재해야 함) */
 export function getAllCommandIds() {
   return Object.keys(COMMAND_META);
 }
