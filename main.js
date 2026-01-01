@@ -398,7 +398,7 @@ function renderCharacters() {
     del.className = "btn";
     del.textContent = "삭제";
     del.addEventListener("click", () => {
-      const ok = confirm(`${c.name} 을(를) 삭제할까?`);
+      const ok = confirm(`${c.name} 을(를) 삭제합니까?`);
       if (!ok) return;
 
       // 편집중 캐릭터를 지우면 편집모드 종료
