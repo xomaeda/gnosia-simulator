@@ -1,6 +1,9 @@
 // main.js (루트) — HTML: <script type="module" src="./main.js"></script>
 
-import { GameEngine } from "./engine/game.js";
+// ✅ engine/game.js는 "실행 버튼 눌렀을 때" 동적 import로 불러온다.
+//    -> game.js 경로 문제/404가 있어도 UI는 빈칸이 되지 않음.
+let GameEngineClass = null;
+
 import { COMMAND_DEFS, statEligible as cmdStatEligible } from "./engine/commands.js";
 
 // (선택) roles / relation 모듈은 있으면 쓰고 없으면 무시
@@ -111,13 +114,14 @@ let characters = [];
 let engine = null;
 let editIndex = -1;
 
-// draft: 폼에서 체크한 커맨드/스탯 입력 중간상태 저장
+// draft
 window.__draftChar = { _allowedSet: new Set() };
 
 // -------------------------------
 // Grid builders
 // -------------------------------
 function buildNumberGrid(container, fields, initial = null, digits = 1) {
+  if (!container) return;
   container.innerHTML = "";
   for (const f of fields) {
     const row = document.createElement("div");
@@ -139,10 +143,8 @@ function buildNumberGrid(container, fields, initial = null, digits = 1) {
     );
     input.dataset.key = f.key;
 
-    // 스탯/성격 값 바뀌면 커맨드 체크 가능 여부 즉시 갱신
     input.addEventListener("input", () => {
-      // draft만 갱신하고 체크리스트 다시 그리기
-      const d = getFormDraftCharacter(false); // validate X
+      const d = getFormDraftCharacter(false);
       window.__draftChar = {
         ...window.__draftChar,
         ...d,
@@ -159,6 +161,7 @@ function buildNumberGrid(container, fields, initial = null, digits = 1) {
 
 function readGridValues(container, fields, digits) {
   const out = {};
+  if (!container) return out;
   const inputs = Array.from(container.querySelectorAll("input[data-key]"));
   const byKey = new Map(inputs.map((i) => [i.dataset.key, i]));
   for (const f of fields) {
@@ -170,21 +173,17 @@ function readGridValues(container, fields, digits) {
 }
 
 // -------------------------------
-// Command checklist (핵심)
-// - 스탯 미달 커맨드는 disabled
-// - disabled이면 체크도 못 함
+// Command checklist
 // -------------------------------
 function renderCommandChecklist(draftChar) {
   if (!commandList) return;
   commandList.innerHTML = "";
 
-  // ✅ commands.js의 statEligible가 char.stats를 보므로
-  // draftChar에 stats를 반드시 맞춰줌(안 그러면 항상 false가 나올 수 있음)
   const stats = draftChar?.stats || draftChar?.status || readGridValues(statsGrid, STAT_FIELDS, 1);
   const normalizedDraft = {
     ...draftChar,
     stats,
-    status: stats, // 엔진이 status를 쓰는 경우도 대비
+    status: stats,
   };
 
   const allowedSet = normalizedDraft._allowedSet instanceof Set
@@ -193,7 +192,6 @@ function renderCommandChecklist(draftChar) {
 
   normalizedDraft._allowedSet = allowedSet;
 
-  // COMMAND_DEFS는 "배열"이어야 함 (네 commands.js 최신본 기준)
   for (const def of COMMAND_DEFS) {
     const id = def.id ?? def.name ?? def.cmd ?? def;
     const label = def.label ?? def.name ?? String(id);
@@ -210,8 +208,6 @@ function renderCommandChecklist(draftChar) {
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = allowedSet.has(id);
-
-    // ✅ 스탯 미달이면 체크 자체 불가
     cb.disabled = !okByStat;
 
     const text = document.createElement("span");
@@ -220,7 +216,6 @@ function renderCommandChecklist(draftChar) {
     if (!okByStat) {
       text.style.opacity = "0.45";
       wrap.title = "스테이터스 조건을 충족하지 못해서 선택할 수 없습니다.";
-      // 이미 체크돼있던 게 스탯 변경으로 미달이 됐다면 자동 해제
       if (allowedSet.has(id)) allowedSet.delete(id);
       cb.checked = false;
     }
@@ -235,7 +230,6 @@ function renderCommandChecklist(draftChar) {
     commandList.appendChild(wrap);
   }
 
-  // draft에 다시 저장
   window.__draftChar = normalizedDraft;
 }
 
@@ -243,9 +237,9 @@ function renderCommandChecklist(draftChar) {
 // Form -> Character
 // -------------------------------
 function getFormDraftCharacter(includeCommands = true) {
-  const name = String(elName.value || "").trim();
-  const gender = elGender.value || "남성";
-  const age = toIntNonNeg(elAge.value, 0);
+  const name = String(elName?.value || "").trim();
+  const gender = elGender?.value || "남성";
+  const age = toIntNonNeg(elAge?.value, 0);
 
   const stats = readGridValues(statsGrid, STAT_FIELDS, 1);
   const personality = readGridValues(persGrid, PERS_FIELDS, 2);
@@ -256,27 +250,19 @@ function getFormDraftCharacter(includeCommands = true) {
     if (tmp && tmp._allowedSet) allowedCommands = Array.from(tmp._allowedSet);
   }
 
-  // ✅ stats/status 둘 다 넣어서 서로 다른 코드가 참조해도 안전하게
-  return {
-    name,
-    gender,
-    age,
-    stats,
-    status: stats,
-    personality,
-    allowedCommands,
-  };
+  return { name, gender, age, stats, status: stats, personality, allowedCommands };
 }
 
 function validateCharacterOrThrow(c) {
   if (!c.name) throw new Error("이름을 입력하세요.");
-  if (c.age < 0) throw new Error("나이는 0 이상이어야 합니다.");
+  if (c.age < 0) throw new Error("식별연령은 0 이상이어야 합니다.");
 }
 
 // -------------------------------
 // List render
 // -------------------------------
 function renderCharacters() {
+  if (!charList) return;
   charList.innerHTML = "";
 
   characters.forEach((c, idx) => {
@@ -320,7 +306,7 @@ function renderCharacters() {
 }
 
 function refreshRunButtonState() {
-  runBtn.disabled = characters.length < 5;
+  if (runBtn) runBtn.disabled = characters.length < 5;
 }
 
 // -------------------------------
@@ -332,11 +318,10 @@ function resetForm() {
   if (applyEditBtn) applyEditBtn.disabled = true;
   if (cancelEditBtn) cancelEditBtn.disabled = true;
 
-  elName.value = "";
-  elGender.value = "남성";
-  elAge.value = "0";
+  if (elName) elName.value = "";
+  if (elGender) elGender.value = "남성";
+  if (elAge) elAge.value = "0";
 
-  // draft
   window.__draftChar = { _allowedSet: new Set() };
 
   buildNumberGrid(statsGrid, STAT_FIELDS, null, 1);
@@ -358,9 +343,9 @@ function enterEdit(idx) {
   if (applyEditBtn) applyEditBtn.disabled = false;
   if (cancelEditBtn) cancelEditBtn.disabled = false;
 
-  elName.value = c.name;
-  elGender.value = c.gender;
-  elAge.value = String(c.age);
+  if (elName) elName.value = c.name;
+  if (elGender) elGender.value = c.gender;
+  if (elAge) elAge.value = String(c.age);
 
   buildNumberGrid(statsGrid, STAT_FIELDS, c.stats || c.status || null, 1);
   buildNumberGrid(persGrid, PERS_FIELDS, c.personality || null, 2);
@@ -466,23 +451,45 @@ function renderRelationIfPossible() {
 // -------------------------------
 // Game start/step
 // -------------------------------
-function startGameIfNeeded() {
-  if (engine) return;
+async function loadEngineIfNeeded() {
+  if (GameEngineClass) return true;
+  try {
+    const mod = await import("./engine/game.js");
+    GameEngineClass = mod.GameEngine;
+    if (!GameEngineClass) throw new Error("engine/game.js에 GameEngine export가 없습니다.");
+    return true;
+  } catch (e) {
+    addLogLine("❌ 엔진 로드 실패: ./engine/game.js");
+    addLogLine(String(e?.message ?? e));
+    addLogLine("➡️ 확인: (1) 파일이 실제로 /engine/game.js에 있는지 (2) 대소문자 정확한지");
+    return false;
+  }
+}
+
+async function startGameIfNeeded() {
+  if (engine) return true;
+
+  const ok = await loadEngineIfNeeded();
+  if (!ok) return false;
 
   const settings = getGameSettings();
-  engine = new GameEngine(characters, settings);
+  engine = new GameEngineClass(characters, settings);
 
   clearLog();
   if (engine.getPublicRoleLines) engine.getPublicRoleLines().forEach(addLogLine);
   else addLogLine("[시작] 게임이 시작되었습니다.");
+
+  return true;
 }
 
-function stepGame() {
+async function stepGame() {
   if (characters.length < 5) {
     alert("캐릭터가 최소 5명 이상이어야 실행할 수 있습니다.");
     return;
   }
-  startGameIfNeeded();
+
+  const ok = await startGameIfNeeded();
+  if (!ok) return;
 
   engine.step();
 
@@ -496,7 +503,7 @@ function stepGame() {
 // -------------------------------
 // Events
 // -------------------------------
-addBtn.addEventListener("click", () => {
+addBtn?.addEventListener("click", () => {
   try {
     const c = getFormDraftCharacter(true);
     validateCharacterOrThrow(c);
@@ -513,39 +520,35 @@ addBtn.addEventListener("click", () => {
   }
 });
 
-if (applyEditBtn) {
-  applyEditBtn.addEventListener("click", () => {
-    try {
-      if (editIndex < 0) return;
-      const c = getFormDraftCharacter(true);
-      validateCharacterOrThrow(c);
+applyEditBtn?.addEventListener("click", () => {
+  try {
+    if (editIndex < 0) return;
+    const c = getFormDraftCharacter(true);
+    validateCharacterOrThrow(c);
 
-      characters[editIndex] = c;
-      engine = null;
+    characters[editIndex] = c;
+    engine = null;
 
-      addLogLine(`[수정] ${c.name}`);
-      renderCharacters();
-      renderRelationIfPossible();
-      resetForm();
-    } catch (e) {
-      alert(e?.message ?? String(e));
-    }
-  });
-}
+    addLogLine(`[수정] ${c.name}`);
+    renderCharacters();
+    renderRelationIfPossible();
+    resetForm();
+  } catch (e) {
+    alert(e?.message ?? String(e));
+  }
+});
 
-if (cancelEditBtn) {
-  cancelEditBtn.addEventListener("click", () => resetForm());
-}
+cancelEditBtn?.addEventListener("click", () => resetForm());
 
-runBtn.addEventListener("click", () => stepGame());
+runBtn?.addEventListener("click", () => stepGame());
 
-saveBtn.addEventListener("click", () => {
+saveBtn?.addEventListener("click", () => {
   try { saveCharacters(); } catch (e) { alert(e?.message ?? String(e)); }
 });
 
-loadBtn.addEventListener("click", async () => {
+loadBtn?.addEventListener("click", async () => {
   try {
-    const f = loadFile.files?.[0];
+    const f = loadFile?.files?.[0];
     if (!f) return alert("로드할 파일을 선택하세요.");
     await loadCharactersFromFile(f);
   } catch (e) {
@@ -559,4 +562,4 @@ loadBtn.addEventListener("click", async () => {
 resetForm();
 renderCharacters();
 renderRelationIfPossible();
-addLogLine("준비 완료. 캐릭터 5명 이상 추가 후 실행 버튼을 누르세요.");
+addLogLine("준비 완료. 캐릭터 5명 이상 추가 후 실행 버튼을 눌러주세요.");
