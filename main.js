@@ -569,7 +569,7 @@ addBtn.addEventListener("click", () => {
 
   // 중복 이름 방지(선택)
   if (characters.some((x) => x.name === c.name)) {
-    if (!confirm("같은 이름이 이미 있어. 그래도 추가할까?")) return;
+    if (!confirm("같은 이름이 이미 있습니다. 그래도 추가합니까?")) return;
   }
 
   characters.push(c);
@@ -605,7 +605,7 @@ saveBtn.addEventListener("click", () => {
 loadBtn.addEventListener("click", async () => {
   const file = loadFile.files?.[0];
   if (!file) {
-    alert("로드할 JSON 파일을 선택해줘.");
+    alert("로드할 JSON 파일을 선택하세요.");
     return;
   }
   await loadCharactersFromFile(file);
@@ -629,5 +629,5 @@ renderCommandChecklist(); // 기본 체크(조건 충족이면 체크)
 renderCharacters();
 
 clearLog();
-addLogLine("준비 완료. 캐릭터를 5명 이상 추가하면 실행 버튼이 활성화돼.");
+addLogLine("준비 완료. 캐릭터를 5명 이상 추가하면 실행 버튼이 활성화됩니다.");
 addLogLine("※ 현재 단계는 UI 고정 단계. 다음 단계에서 '완성 엔진(역할/커맨드/낮5턴/밤2단계/관계도)'를 연결할 거야.");
