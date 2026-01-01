@@ -1,103 +1,192 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>그노시아 시뮬레이터</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cafe24+Gowun+Batang&display=swap" rel="stylesheet">
+
+  <!-- 카페24 고운밤 (Cafe24Oneprettynight) 웹폰트: Noonnu CDN -->
+  <!-- 출처: Noonnu '카페24 고운밤' (Cafe24 Gowoonbam / Oneprettynight) -->
   <style>
-    body {
-      font-family: 'Cafe24 Gowun Batang', sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 20px;
-    }
-    input, select, button, fieldset {
-      margin: 8px 0;
-      padding: 8px;
-    }
-    #charList, #commandList, #log {
-      list-style: none;
-      padding: 10px;
-      border: 1px solid #444;
-      background: #000;
-      margin-top: 10px;
-    }
-    .button {
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      cursor: pointer;
-    }
-    .button:hover {
-      background-color: #45a049;
+    @font-face {
+      font-family: 'Cafe24Oneprettynight';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Oneprettynight.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
     }
   </style>
+
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="title">그노시아 시뮬레이터</div>
+      <div class="subtitle">팬메이드 시뮬레이터 (로컬 실행 / GitHub Pages)</div>
+    </div>
 
-<h1>그노시아 시뮬레이터</h1>
+    <div class="top-actions">
+      <button id="runBtn" class="btn primary" disabled>실행(1스텝)</button>
+      <button id="logSaveBtn" class="btn">로그 저장</button>
+    </div>
+  </header>
 
-<!-- 캐릭터 생성 폼 -->
-<h2>캐릭터 생성</h2>
-<input id="name" placeholder="이름">
-<select id="gender">
-  <option value="남성">남성</option>
-  <option value="여성">여성</option>
-  <option value="범성">범성</option>
-</select>
-<input id="age" type="number" placeholder="식별연령">
+  <main class="layout">
+    <!-- LEFT: 명단 관리 -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>명단 관리</h2>
+        <div class="hint">캐릭터 5~15명 필요</div>
+      </div>
 
-<fieldset>
-  <legend>스테이터스 (0~50)</legend>
-  <input id="charisma" type="number" placeholder="카리스마">
-  <input id="logic" type="number" placeholder="논리력">
-  <input id="acting" type="number" placeholder="연기력">
-  <input id="charm" type="number" placeholder="귀염성">
-  <input id="stealth" type="number" placeholder="스텔스">
-  <input id="intuition" type="number" placeholder="직감">
-</fieldset>
+      <div id="editBanner" class="banner" style="display:none;">
+        <b>수정 모드</b> — 아래 내용을 고치고 “수정 적용”을 누르세요.
+      </div>
 
-<fieldset>
-  <legend>성격 (0~50)</legend>
-  <input id="cheer" type="number" placeholder="쾌활함">
-  <input id="social" type="number" placeholder="사회성">
-  <input id="logical" type="number" placeholder="논리성향">
-  <input id="kindness" type="number" placeholder="상냥함">
-  <input id="desire" type="number" placeholder="욕망">
-  <input id="courage" type="number" placeholder="용기">
-</fieldset>
+      <div class="grid2">
+        <label class="field">
+          <span class="label">이름</span>
+          <input id="name" class="input" placeholder="이름" />
+        </label>
 
-<button id="addChar" class="button">캐릭터 추가</button>
-<button id="runBtn" class="button" disabled>게임 실행</button>
+        <label class="field">
+          <span class="label">성별</span>
+          <select id="gender" class="input">
+            <option value="남성">남성</option>
+            <option value="여성">여성</option>
+            <option value="범성">범성</option>
+          </select>
+        </label>
 
-<h2>게임 설정</h2>
-<fieldset>
-  <legend>게임 설정</legend>
-  <label for="roles">역할 설정:</label>
-  <select id="roles">
-    <option value="선원">선원</option>
-    <option value="그노시아">그노시아</option>
-    <option value="엔지니어">엔지니어</option>
-    <option value="닥터">닥터</option>
-    <option value="수호천사">수호천사</option>
-    <option value="AC주의자">AC주의자</option>
-  </select>
-  <label for="gnosiaCount">그노시아 수:</label>
-  <input type="number" id="gnosiaCount" value="1" min="1" max="6">
-</fieldset>
+        <label class="field">
+          <span class="label">식별연령</span>
+          <input id="age" class="input" type="number" min="0" step="1" placeholder="0 이상" />
+        </label>
 
-<h2>캐릭터 목록</h2>
-<ul id="charList"></ul>
+        <div class="field">
+          <span class="label">세이브/로드(캐릭터만)</span>
+          <div class="row-inline">
+            <button id="saveBtn" class="btn">세이브</button>
+            <input id="loadFile" class="input file" type="file" accept="application/json" />
+            <button id="loadBtn" class="btn">로드</button>
+          </div>
+        </div>
+      </div>
 
-<h2>커맨드</h2>
-<fieldset id="commandList">
-  <!-- 커맨드 체크리스트 -->
-</fieldset>
+      <div class="two-columns">
+        <div class="box">
+          <div class="box-head">
+            <h3>스테이터스 (0~50)</h3>
+            <div class="mini">소수 1자리 가능</div>
+          </div>
+          <!-- main.js가 여기 채움 -->
+          <div id="statsGrid" class="kv-grid"></div>
+        </div>
 
-<h2>로그</h2>
-<div id="log"></div>
+        <div class="box">
+          <div class="box-head">
+            <h3>성격 (0.00~1.00)</h3>
+            <div class="mini">소수 2자리 권장</div>
+          </div>
+          <!-- main.js가 여기 채움 -->
+          <div id="persGrid" class="kv-grid"></div>
+        </div>
+      </div>
 
-<script src="main.js"></script>
+      <details class="box" open>
+        <summary class="summary">
+          <h3>사용 가능 커맨드 체크</h3>
+          <span class="mini">체크한 커맨드만 캐릭터가 사용</span>
+        </summary>
+        <div id="commandList" class="cmd-grid"></div>
+      </details>
+
+      <div class="row-inline">
+        <button id="addChar" class="btn primary">캐릭터 추가</button>
+
+        <button id="applyEditBtn" class="btn" disabled>수정 적용</button>
+        <button id="cancelEditBtn" class="btn" disabled>수정 취소</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3 class="subhead">캐릭터 목록</h3>
+      <div id="charList" class="list"></div>
+    </section>
+
+    <!-- RIGHT: 게임 설정 / 관계도 / 로그 -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>게임 설정</h2>
+        <div class="hint">역할 포함/제외 + 그노시아 수</div>
+      </div>
+
+      <div class="settings">
+        <div class="settings-grid">
+          <label class="toggle">
+            <input type="checkbox" id="setEngineer" checked />
+            <span>엔지니어</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="setDoctor" checked />
+            <span>닥터</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="setGuardian" checked />
+            <span>수호천사</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="setGuardDuty" checked />
+            <span>선내대기인</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="setAC" checked />
+            <span>AC주의자</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="setBug" checked />
+            <span>버그</span>
+          </label>
+        </div>
+
+        <div class="row-inline">
+          <label class="field grow">
+            <span class="label">그노시아 수</span>
+            <input id="gnosiaCount" class="input" type="number" min="1" max="6" value="1" />
+          </label>
+          <div class="mini note">
+            ※ 인원수에 따라 최대치 자동 제한(엔진에서 처리)
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="panel-head">
+        <h2>관계도</h2>
+        <div class="hint">신뢰/우호 시각화</div>
+      </div>
+
+      <!-- 관계도는 엔진/메인에서 그려주면 됨 -->
+      <div class="relations">
+        <div class="mini">※ 관계도(시각화)는 다음 단계에서 캔버스/그리드로 연결</div>
+        <div id="relationsView" class="relations-box">
+          관계도 준비 중…
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="panel-head">
+        <h2>로그</h2>
+        <div class="hint">실행 버튼 1번 = 1스텝</div>
+      </div>
+
+      <div id="log" class="log"></div>
+    </section>
+  </main>
+
+  <!-- ★ 중요: main.js는 모듈로 실행 (import 쓰면 필수) -->
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
