@@ -1,7 +1,7 @@
 // main.js (root)  — HTML: <script type="module" src="./main.js"></script>
 
 import { GameEngine } from "./engine/game.js";
-import { COMMAND_DEFS } from "./engine/commands.js";
+import { COMMAND_DEFS, statEligible } from "./engine/commands.js";
 
 // (선택) roles / relation 모듈은 있으면 쓰고 없으면 무시
 let rolesApi = null;
@@ -151,13 +151,17 @@ function readGridValues(container, fields, digits) {
   return out;
 }
 
-// 커맨드 체크박스 렌더 (카테고리 있으면 분류, 없으면 한 그룹)
+// ✅ 현재 폼 기준(스탯)으로 "체크 가능 여부"를 판정하기 위한 임시 캐릭터
+function buildTempCharForEligibility() {
+  const stats = readGridValues(statsGrid, STAT_FIELDS, 1);
+  return { stats };
+}
+
+// 커맨드 체크박스 렌더
 function renderCommandChecklist(charDraft) {
   commandList.innerHTML = "";
 
   const defs = getCommandDefArray();
-
-  // defs가 비어있으면 여기서 끝(하지만 이제 commands.js export가 정상이라면 비지 않아야 함)
   if (!defs.length) {
     const warn = document.createElement("div");
     warn.style.opacity = "0.8";
@@ -166,7 +170,6 @@ function renderCommandChecklist(charDraft) {
     return;
   }
 
-  // 간단 그룹핑
   const groups = new Map();
   for (const d of defs) {
     const cat = d.category || "기타";
@@ -174,8 +177,10 @@ function renderCommandChecklist(charDraft) {
     groups.get(cat).push(d);
   }
 
-  // 체크 상태(편집/추가 폼에서 보여줄 임시 상태)
   const allowed = new Set(Array.isArray(charDraft?.allowedCommands) ? charDraft.allowedCommands : []);
+
+  // ✅ 스탯 조건에 따라 disabled 처리
+  const tempChar = buildTempCharForEligibility();
 
   for (const [cat, list] of groups.entries()) {
     const sec = document.createElement("div");
@@ -188,7 +193,6 @@ function renderCommandChecklist(charDraft) {
     const grid = document.createElement("div");
     grid.className = "cmd-group-grid";
 
-    // 보기 좋게 정렬
     list.sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "ko"));
 
     for (const d of list) {
@@ -199,8 +203,13 @@ function renderCommandChecklist(charDraft) {
       cb.type = "checkbox";
       cb.dataset.cmd = d.id;
 
-      // ✅ “성향상 사용 안 함”을 유저가 고르는 체크박스
-      // 단, 스탯 조건 미달이어도 "체크는 가능"해야 한다고 했으니 여기서 막지 않음.
+      // ✅ 스탯 조건 미달이면 선택 불가
+      const okByStat = statEligible(tempChar, d.id);
+      cb.disabled = !okByStat;
+
+      // disabled인데 이미 체크되어 있으면 자동 해제
+      if (!okByStat && allowed.has(d.id)) allowed.delete(d.id);
+
       cb.checked = allowed.has(d.id);
 
       cb.addEventListener("change", () => {
@@ -216,12 +225,16 @@ function renderCommandChecklist(charDraft) {
       desc.className = "cmd-desc";
       desc.textContent = d.desc || "";
 
-      // 툴팁
-      item.title = [
-        d.name || d.id,
-        d.desc ? `- ${d.desc}` : "",
-        d.requireText ? `조건: ${d.requireText}` : "",
-      ].filter(Boolean).join("\n");
+      // tooltip
+      const lines = [];
+      lines.push(d.name || d.id);
+      if (d.desc) lines.push(`- ${d.desc}`);
+      if (d.requireText) lines.push(`조건: ${d.requireText}`);
+      if (!okByStat) lines.push(`(현재 스테이터스 조건 미달: 선택 불가)`);
+      item.title = lines.join("\n");
+
+      // 시각적으로 disabled 느낌(스타일이 없으면 최소한의 힌트)
+      if (!okByStat) item.style.opacity = "0.55";
 
       item.appendChild(cb);
       item.appendChild(name);
@@ -235,7 +248,6 @@ function renderCommandChecklist(charDraft) {
     commandList.appendChild(sec);
   }
 
-  // 폼 상태에 반영할 수 있도록 임시 저장
   charDraft._allowedSet = allowed;
 }
 
@@ -247,7 +259,6 @@ function getFormDraftCharacter() {
   const status = readGridValues(statsGrid, STAT_FIELDS, 1);
   const personality = readGridValues(persGrid, PERS_FIELDS, 2);
 
-  // 커맨드 체크는 renderCommandChecklist가 만든 _allowedSet을 사용
   let allowedCommands = [];
   const tmp = window.__draftChar;
   if (tmp && tmp._allowedSet) allowedCommands = Array.from(tmp._allowedSet);
@@ -258,7 +269,6 @@ function getFormDraftCharacter() {
 function validateCharacterOrThrow(c) {
   if (!c.name) throw new Error("이름을 입력하세요.");
   if (c.age < 0) throw new Error("나이는 0 이상이어야 합니다.");
-  // status/personality는 readGridValues에서 clamp됨
 }
 
 // -------------------------------
@@ -324,7 +334,6 @@ function resetForm() {
   elGender.value = "남성";
   elAge.value = "0";
 
-  // draft
   window.__draftChar = { allowedCommands: [] };
 
   buildNumberGrid(statsGrid, STAT_FIELDS, null);
@@ -410,7 +419,6 @@ async function loadCharactersFromFile(file) {
 // -------------------------------
 function computeMaxGnosia(n) {
   if (rolesApi?.computeMaxGnosia) return rolesApi.computeMaxGnosia(n);
-  // fallback
   if (n <= 6) return 1;
   if (n <= 8) return 2;
   if (n <= 10) return 3;
@@ -434,7 +442,6 @@ function getGameSettings() {
 
   const gCount = clamp(toIntNonNeg(gnosiaCountEl ? gnosiaCountEl.value : 1, 1), 1, maxG);
 
-  // roles.js가 normalizeGameConfig 형태를 기대하면 맞춰줌
   if (rolesApi?.normalizeGameConfig) {
     return rolesApi.normalizeGameConfig({ rolesEnabled, gnosiaCount: gCount }, n);
   }
@@ -547,6 +554,14 @@ loadBtn.addEventListener("click", async () => {
     alert(e?.message ?? String(e));
   }
 });
+
+// ✅ 스테이터스가 바뀌면 커맨드 체크박스의 disabled 상태도 즉시 갱신
+if (statsGrid) {
+  statsGrid.addEventListener("input", () => {
+    if (!window.__draftChar) window.__draftChar = { allowedCommands: [] };
+    renderCommandChecklist(window.__draftChar);
+  });
+}
 
 // -------------------------------
 // Init
