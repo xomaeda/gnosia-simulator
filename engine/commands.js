@@ -909,13 +909,6 @@ export function getSuggestedDefaultChecks(char) {
 // =========================
 // export helper (FIX)
 // =========================
-export function getAllCommandIds() {
-  // COMMAND가 객체면: {A:"...", B:"..."} → values가 커맨드 ID들
-  if (typeof COMMAND === "object" && COMMAND && !Array.isArray(COMMAND)) {
-    // Map이면 keys, 일반 객체면 values
-    if (COMMAND instanceof Map) return Array.from(COMMAND.keys());
-    return Object.values(COMMAND);
-  }
 
   // COMMAND가 배열이면 그대로
   if (Array.isArray(COMMAND)) return [...COMMAND];
